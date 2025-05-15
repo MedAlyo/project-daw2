@@ -10,9 +10,11 @@ import {
   signOut // Import signOut
 } from 'firebase/auth';
 import { auth } from '@/lib/firebase/config';
+import { createUserProfile } from '@/lib/firebase/firestoreActions'; // Import createUserProfile
 
 /**
  * Register page component with monochromatic styling.
+ * Allows user to choose role (Buyer/Seller) during registration.
  * After registration, user is signed out and redirected to login.
  */
 export default function RegisterPage() {
@@ -20,6 +22,7 @@ export default function RegisterPage() {
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [confirmPassword, setConfirmPassword] = useState<string>('');
+  const [role, setRole] = useState<'buyer' | 'seller'>('buyer'); // Add state for role, default to buyer
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const router = useRouter();
@@ -46,23 +49,27 @@ export default function RegisterPage() {
     setIsLoading(true);
 
     try {
-      // Create the user with email and password
+      // Create the user with email and password using Firebase Auth
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
 
       if (userCredential.user) {
-        // Update the user's profile with the displayName (username)
-        await updateProfile(userCredential.user, {
+        const firebaseUser = userCredential.user;
+
+        // Update the user's profile with the displayName (username) in Firebase Auth
+        await updateProfile(firebaseUser, {
           displayName: username,
         });
 
+        // Create a user profile document in Firestore with the chosen role
+        await createUserProfile(firebaseUser.uid, username, role); // Call createUserProfile
+
         // Send the email verification link
-        await firebaseSendEmailVerification(userCredential.user);
+        await firebaseSendEmailVerification(firebaseUser);
 
         // IMPORTANT: Sign the user out after registration and sending verification
         await signOut(auth);
 
         // Redirect to the login page with a status message
-        // This tells the login page to inform the user about successful registration and verification requirement
         router.push('/account/login?status=registered');
       } else {
         // Fallback if user object is not available, though unlikely after successful creation
@@ -80,7 +87,6 @@ export default function RegisterPage() {
       }
       setIsLoading(false); // Reset loading state on error
     }
-    // Do not set isLoading to false here if successful, as router.push will navigate away
   };
 
   return (
@@ -156,6 +162,45 @@ export default function RegisterPage() {
               disabled={isLoading}
               placeholder="••••••••"
             />
+          </div>
+
+          {/* Role Selection */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Register as:
+            </label>
+            <div className="mt-1 flex items-center space-x-4">
+              <div className="flex items-center">
+                <input
+                  id="role-buyer"
+                  name="role"
+                  type="radio"
+                  value="buyer"
+                  checked={role === 'buyer'}
+                  onChange={() => setRole('buyer')}
+                  disabled={isLoading}
+                  className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300"
+                />
+                <label htmlFor="role-buyer" className="ml-2 block text-sm text-gray-900">
+                  Buyer
+                </label>
+              </div>
+              <div className="flex items-center">
+                <input
+                  id="role-seller"
+                  name="role"
+                  type="radio"
+                  value="seller"
+                  checked={role === 'seller'}
+                  onChange={() => setRole('seller')}
+                   disabled={isLoading}
+                  className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300"
+                />
+                <label htmlFor="role-seller" className="ml-2 block text-sm text-gray-900">
+                  Seller
+                </label>
+              </div>
+            </div>
           </div>
 
           {error && (
