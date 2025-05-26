@@ -1,319 +1,288 @@
 'use client';
 
-import React, { useState, FormEvent, useEffect } from 'react';
+import React, { useState, useEffect, FormEvent } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
-// Assuming you'll create Firestore functions
-import { getProductById, updateProduct, deleteProduct } from '@/lib/firebase/firestoreActions'; // Import Firestore functions
+import { getProductById, updateProduct, Product } from '@/lib/firebase/firestoreActions';
+import Link from 'next/link';
 import { Timestamp } from 'firebase/firestore'; // Import Timestamp
 
-// Define a basic Product type (should match the one in list page and firestoreActions)
-interface Product {
-  id: string;
-  name: string;
-  description: string;
-  price: number;
-  stock: number;
-  imageUrl?: string; // Optional
-  sellerId: string; // Important for security checks
-  createdAt: Timestamp; // Changed from Date to Timestamp
-  updatedAt: Timestamp; // Changed from Date to Timestamp
-}
-
-/**
- * Seller Edit Product Page
- * Fetches and displays a specific product for editing or deletion.
- */
 export default function EditProductPage() {
-  const { user, loading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const router = useRouter();
-  const params = useParams(); // Get route parameters
-  const productId = params.productId as string; // Get the product ID from the URL
+  const params = useParams();
+  const productId = params.productId as string;
 
   const [product, setProduct] = useState<Product | null>(null);
-  const [name, setName] = useState<string>('');
-  const [description, setDescription] = useState<string>('');
-  const [price, setPrice] = useState<string>('');
-  const [stock, setStock] = useState<string>('');
-  const [imageUrl, setImageUrl] = useState<string>('');
-
-  const [isLoading, setIsLoading] = useState<boolean>(true); // Loading state for fetching product
-  const [isSaving, setIsSaving] = useState<boolean>(false); // Loading state for saving changes
-  const [isDeleting, setIsDeleting] = useState<boolean>(false); // Loading state for deletion
-
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [price, setPrice] = useState('');
+  const [stock, setStock] = useState('');
+  const [status, setStatus] = useState<'active' | 'draft'>('draft');
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // Protect the route and fetch the product
   useEffect(() => {
-    // Redirect if not authenticated after loading
-    if (!loading && !user) {
+    if (authLoading) return;
+    if (!user) {
       router.push('/account/login');
-      return; // Stop execution if redirecting
+      return;
+    }
+    if (user.role !== 'seller') {
+      router.push('/dashboard/buyer'); // Or some other appropriate page
+      return;
     }
 
-    // If user is logged in and productId is available, fetch the product
-    if (user && productId) {
+    if (productId) {
       const fetchProduct = async () => {
         setIsLoading(true);
         setError(null);
         try {
-          // TODO: Implement getProductById function in firestoreActions.ts
-          // This function should fetch the product document by its ID
-          const fetchedProduct = await getProductById(productId); // Call getProductById
-
-          if (!fetchedProduct) {
+          const fetchedProduct = await getProductById(productId);
+          if (fetchedProduct) {
+            if (fetchedProduct.sellerId !== user.uid) {
+              setError('You are not authorized to edit this product.');
+              setProduct(null);
+            } else {
+              setProduct(fetchedProduct);
+              setName(fetchedProduct.name);
+              setDescription(fetchedProduct.description);
+              setPrice(fetchedProduct.price.toString());
+              setStock(fetchedProduct.stock.toString());
+              setStatus(fetchedProduct.status);
+            }
+          } else {
             setError('Product not found.');
-            setProduct(null); // Explicitly set product to null
-          } else if (fetchedProduct.sellerId !== user.uid) {
-             // Security check: Ensure the logged-in user owns this product
-             setError('You do not have permission to edit this product.');
-             setProduct(null); // Explicitly set product to null
           }
-          else {
-            setProduct(fetchedProduct);
-            // Populate form fields with fetched data
-            setName(fetchedProduct.name);
-            setDescription(fetchedProduct.description);
-            setPrice(fetchedProduct.price.toFixed(2)); // Format price for input
-            setStock(fetchedProduct.stock.toString()); // Format stock for input
-            setImageUrl(fetchedProduct.imageUrl || '');
-          }
-        } catch (err: any) {
-          console.error("Error fetching product:", err);
-          setError(err.message || 'Failed to load product. Please try again.');
-          setProduct(null); // Explicitly set product to null on error
-        } finally {
-          setIsLoading(false);
+        } catch (err) {
+          console.error('Error fetching product:', err);
+          setError('Failed to load product details. Please try again.');
         }
+        setIsLoading(false);
       };
-
       fetchProduct();
-    } else if (!productId && !loading) {
-         // Handle case where productId is missing from the URL
-         setError('Product ID is missing from the URL.');
-         setIsLoading(false);
-         setProduct(null);
     }
-  }, [user, loading, router, productId]); // Depend on user, loading, router, and productId
+  }, [productId, user, authLoading, router]);
 
-  // Show loading state while checking auth or fetching product
-  if (loading || isLoading || !user) {
-    return (
-      <div className="flex items-center justify-center min-h-[calc(100vh-200px)]">
-        <p className="text-gray-700">{loading || !user ? 'Loading user...' : 'Loading product...'}</p>
-      </div>
-    );
-  }
-
-  // Show error if product not found or permission denied
-  if (error && !product) {
-      return (
-        <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)] px-4">
-            <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg border border-gray-200 text-center">
-                <h1 className="text-2xl font-semibold text-gray-900">Error</h1>
-                <p className="text-red-600 text-sm">{error}</p>
-                 <Link href="/dashboard/seller/products" className="font-medium text-blue-600 hover:text-blue-500">
-                    Back to Product List
-                </Link>
-            </div>
-        </div>
-      );
-  }
-
-  // Render form if product is loaded and user has permission
-  const handleUpdate = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
     setError(null);
-    setSuccess(null);
-    setIsSaving(true);
+    setSuccessMessage(null);
 
-     // Basic validation
-    if (!name || !description || !price || !stock) {
-      setError('Please fill in all required fields.');
-      setIsSaving(false);
+    if (!product || !user || user.uid !== product.sellerId) {
+      setError('Cannot update product. Authorization failed or product not loaded.');
+      console.error('Update failed: Authorization or product not loaded.', { product, user });
       return;
     }
 
-    const priceNumber = parseFloat(price);
-    const stockNumber = parseInt(stock, 10);
-
-    if (isNaN(priceNumber) || priceNumber < 0) {
-        setError('Please enter a valid price.');
-        setIsSaving(false);
-        return;
+    // Basic Validation
+    if (!name.trim() || !description.trim() || !price.trim() || !stock.trim()) {
+      setError('All fields except image are required.');
+      console.error('Update failed: Validation error - missing fields.');
+      return;
     }
-     if (isNaN(stockNumber) || stockNumber < 0) {
-        setError('Please enter a valid stock quantity.');
-        setIsSaving(false);
-        return;
+    const numericPrice = parseFloat(price);
+    const numericStock = parseInt(stock, 10);
+    if (isNaN(numericPrice) || numericPrice <= 0) {
+      setError('Price must be a positive number.');
+      console.error('Update failed: Validation error - invalid price.');
+      return;
+    }
+    if (isNaN(numericStock) || numericStock < 0) {
+      setError('Stock must be a non-negative number.');
+      console.error('Update failed: Validation error - invalid stock.');
+      return;
     }
 
-    // Prepare updated product data
-    const updatedProductData = {
-      name,
-      description,
-      price: priceNumber,
-      stock: stockNumber,
-      imageUrl, // Optional
-      // updatedAt will be added in the firestoreActions function
-    };
-
+    setIsLoading(true);
     try {
-      // TODO: Implement updateProduct function in firestoreActions.ts
-      // This function should update the product document by its ID
-      await updateProduct(productId, updatedProductData); // Call updateProduct
-
-      setSuccess('Product updated successfully!');
-      // Optional: Refresh product data after update if needed
-      // const fetchedProduct = await getProductById(productId);
-      // setProduct(fetchedProduct);
-
-    } catch (err: any) {
-      console.error("Error updating product:", err);
-      setError(err.message || 'Failed to update product. Please try again.');
-    } finally {
-      setIsSaving(false);
+      const productDataToUpdate = {
+        name: name.trim(),
+        description: description.trim(),
+        price: numericPrice,
+        stock: numericStock,
+        status,
+      };
+      console.log('Attempting to update product with ID:', productId, 'Data:', productDataToUpdate);
+      await updateProduct(productId, productDataToUpdate);
+      setSuccessMessage('Product updated successfully!');
+      console.log('Product updated successfully:', productId);
+      // Update local product state with the new data, using Timestamp.now() for updatedAt
+      setProduct(prev => 
+        prev 
+          ? { 
+              ...prev, 
+              ...productDataToUpdate, 
+              updatedAt: Timestamp.now() // Corrected: Use Timestamp.now()
+            } 
+          : null
+      );
+    } catch (err) {
+      console.error('Error updating product in handleSubmit:', err);
+      setError('Failed to update product. Please try again. Check console for details.');
     }
+    setIsLoading(false);
   };
 
-  const handleDelete = async () => {
-      if (!product || !confirm(`Are you sure you want to delete "${product.name}"?`)) {
-          return;
-      }
+  if (authLoading || (isLoading && !error && !product)) {
+    return <div className="flex justify-center items-center h-screen"><p className="text-lg">Loading product details...</p></div>;
+  }
 
-      setIsDeleting(true);
-      setError(null);
-      setSuccess(null);
-
-      try {
-          // TODO: Implement deleteProduct function in firestoreActions.ts
-          // This function should delete the product document by its ID
-          await deleteProduct(productId); // Call deleteProduct
-
-          setSuccess('Product deleted successfully! Redirecting...');
-          // Redirect to product list after deletion
-          setTimeout(() => router.push('/dashboard/seller/products'), 2000);
-
-      } catch (err: any) {
-          console.error("Error deleting product:", err);
-          setError(err.message || 'Failed to delete product. Please try again.');
-          setIsDeleting(false);
-      }
-  };
+  if (error && !product) { // Show error if product couldn't be loaded at all
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <p className="text-red-500 text-center">{error}</p>
+        <div className="text-center mt-4">
+          <Link href="/dashboard/seller" legacyBehavior>
+            <a className="text-indigo-600 hover:text-indigo-800 font-medium">
+              Back to Dashboard
+            </a>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+  
+  if (!product) { // Should ideally be covered by isLoading or error states
+      return <div className="flex justify-center items-center h-screen"><p className="text-lg">Product not found or not authorized.</p></div>;
+  }
 
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold text-gray-900 mb-6">Edit Product: {product?.name}</h1>
-
-      <div className="w-full max-w-lg bg-white p-8 rounded-lg shadow border border-gray-200">
-        <form onSubmit={handleUpdate} className="space-y-5">
-           {/* Name */}
-          <div>
-            <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">Product Name</label>
-            <input
-              type="text"
-              id="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              required
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm disabled:opacity-70"
-              disabled={isSaving || isDeleting}
-            />
-          </div>
-
-          {/* Description */}
-          <div>
-            <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-            <textarea
-              id="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              required
-              rows={4}
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm disabled:opacity-70"
-              disabled={isSaving || isDeleting}
-            ></textarea>
-          </div>
-
-          {/* Price */}
-          <div>
-            <label htmlFor="price" className="block text-sm font-medium text-gray-700 mb-1">Price ($)</label>
-            <input
-              type="number"
-              id="price"
-              value={price}
-              onChange={(e) => setPrice(e.target.value)}
-              required
-              min="0"
-              step="0.01"
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm disabled:opacity-70"
-              disabled={isSaving || isDeleting}
-            />
-          </div>
-
-          {/* Stock */}
-          <div>
-            <label htmlFor="stock" className="block text-sm font-medium text-gray-700 mb-1">Stock Quantity</label>
-            <input
-              type="number"
-              id="stock"
-              value={stock}
-              onChange={(e) => setStock(e.target.value)}
-              required
-              min="0"
-              step="1"
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm disabled:opacity-70"
-              disabled={isSaving || isDeleting}
-            />
-          </div>
-
-           {/* Image URL (Optional) */}
-          <div>
-            <label htmlFor="imageUrl" className="block text-sm font-medium text-gray-700 mb-1">Image URL (Optional)</label>
-            <input
-              type="url"
-              id="imageUrl"
-              value={imageUrl}
-              onChange={(e) => setImageUrl(e.target.value)}
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm disabled:opacity-70"
-              disabled={isSaving || isDeleting}
-            />
-          </div>
-
-          {success && (
-            <p className="text-green-600 text-sm text-center">{success}</p>
-          )}
-          {error && (
-            <p className="text-red-600 text-sm text-center">{error}</p>
-          )}
-
-          {/* Action Buttons */}
-          <div className="flex justify-between space-x-4">
-            <button
-              type="submit"
-              disabled={isSaving || isDeleting}
-              className="flex-1 flex justify-center py-2.5 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
-            >
-              {isSaving ? 'Saving...' : 'Save Changes'}
-            </button>
-             <button
-              type="button" // Use type="button" to prevent form submission
-              onClick={handleDelete}
-              disabled={isSaving || isDeleting}
-              className="flex-1 flex justify-center py-2.5 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-red-600 hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 disabled:opacity-50"
-            >
-              {isDeleting ? 'Deleting...' : 'Delete Product'}
-            </button>
-          </div>
-        </form>
-
-        <div className="mt-6 text-center">
-            <Link href="/dashboard/seller/products" className="font-medium text-blue-600 hover:text-blue-500">
-                Back to Product List
+    <div className="min-h-screen bg-gray-100 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-3xl mx-auto">
+        <div className="bg-white shadow-xl rounded-lg p-8 md:p-10">
+          <div className="flex justify-between items-center mb-8">
+            <h1 className="text-3xl font-bold text-gray-800">Edit Product</h1>
+            <Link href="/dashboard/seller" legacyBehavior>
+              <a className="text-sm text-indigo-600 hover:text-indigo-800 font-medium">
+                &larr; Back to Dashboard
+              </a>
             </Link>
+          </div>
+
+          {error && (
+            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-6" role="alert">
+              <strong className="font-bold">Error: </strong>
+              <span className="block sm:inline">{error}</span>
+            </div>
+          )}
+          {successMessage && (
+            <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-6" role="alert">
+              <strong className="font-bold">Success: </strong>
+              <span className="block sm:inline">{successMessage}</span>
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div>
+              <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+                Product Name
+              </label>
+              <input
+                type="text"
+                name="name"
+                id="name"
+                required
+                className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                disabled={isLoading}
+              />
+            </div>
+
+            <div>
+              <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
+                Description
+              </label>
+              <textarea
+                name="description"
+                id="description"
+                rows={4}
+                required
+                className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                disabled={isLoading}
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label htmlFor="price" className="block text-sm font-medium text-gray-700 mb-1">
+                  Price ($)
+                </label>
+                <input
+                  type="number"
+                  name="price"
+                  id="price"
+                  required
+                  min="0.01"
+                  step="0.01"
+                  className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                  value={price}
+                  onChange={(e) => setPrice(e.target.value)}
+                  disabled={isLoading}
+                />
+              </div>
+              <div>
+                <label htmlFor="stock" className="block text-sm font-medium text-gray-700 mb-1">
+                  Stock Quantity
+                </label>
+                <input
+                  type="number"
+                  name="stock"
+                  id="stock"
+                  required
+                  min="0"
+                  step="1"
+                  className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                  value={stock}
+                  onChange={(e) => setStock(e.target.value)}
+                  disabled={isLoading}
+                />
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="status" className="block text-sm font-medium text-gray-700 mb-1">
+                Status
+              </label>
+              <select
+                name="status"
+                id="status"
+                required
+                className="mt-1 block w-full px-4 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                value={status}
+                onChange={(e) => setStatus(e.target.value as 'active' | 'draft')}
+                disabled={isLoading}
+              >
+                <option value="draft">Draft</option>
+                <option value="active">Active</option>
+              </select>
+            </div>
+            
+            {/* Placeholder for image upload if you add it later */}
+            {/* 
+            <div>
+              <label htmlFor="image" className="block text-sm font-medium text-gray-700 mb-1">
+                Product Image (Optional)
+              </label>
+              <input type="file" name="image" id="image" className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"/>
+            </div>
+            */}
+
+            <div className="pt-2">
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-gray-400"
+              >
+                {isLoading ? 'Saving...' : 'Save Changes'}
+              </button>
+            </div>
+          </form>
         </div>
       </div>
     </div>

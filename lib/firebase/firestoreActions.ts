@@ -8,31 +8,44 @@ import {
   where,
   doc,
   getDoc,
+  setDoc,
   updateDoc,
   deleteDoc,
-  Timestamp, // Import Timestamp if you want to use Firestore Timestamps
-  setDoc // Import setDoc to create a document with a specific ID
+  Timestamp,
 } from 'firebase/firestore';
 
 // Define the path to your collections
 const productsCollection = collection(db, 'products');
 const usersCollection = collection(db, 'users'); // Collection for user profiles
+const storesCollection = collection(db, 'stores'); // <-- ADDED: Collection for stores
+
+// Define the Store interface
+export interface Store {
+  id: string; // Document ID from Firestore
+  ownerId: string; // UID of the seller who owns the store
+  name: string;
+  // Add other store-specific fields here, e.g., description, logoUrl, etc.
+  createdAt: Timestamp;
+  updatedAt?: Timestamp; // Optional: if you track updates
+}
 
 // Define the Product interface (should match the one in your components)
 // Using Timestamp for date fields is generally better practice with Firestore
 interface ProductData {
   sellerId: string;
+  storeId: string; // <-- ADDED: Store ID to associate product with a store
   name: string;
   description: string;
   price: number;
   stock: number;
+  status: 'active' | 'draft'; // Added status here
   imageUrl?: string; // Optional image URL
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
 
 // Interface for a product document retrieved from Firestore, including its ID
-interface Product extends ProductData {
+export interface Product extends ProductData { 
     id: string; // Add id for fetched products
 }
 
@@ -47,15 +60,24 @@ interface UserProfile {
 
 /**
  * Adds a new product to Firestore.
+ * @param sellerUid The ID of the seller.
+ * @param storeId The ID of the store this product belongs to.
  * @param productData The product data to add (excluding createdAt/updatedAt).
  * @returns Promise<string> The ID of the newly created document.
  */
-export const addProduct = async (productData: Omit<ProductData, 'createdAt' | 'updatedAt'>): Promise<string> => {
+export const createProductListing = async (sellerUid: string, storeId: string, productData: Omit<Product, 'id' | 'sellerId' | 'storeId' | 'createdAt' | 'updatedAt' | 'imageUrl'>): Promise<string> => {
   try {
     // Add createdAt and updatedAt timestamps
     const now = Timestamp.now();
     const dataToSave: ProductData = {
-      ...productData,
+      sellerId: sellerUid, 
+      storeId: storeId, // <-- ADDED: Save the storeId
+      name: productData.name,
+      description: productData.description,
+      price: productData.price,
+      stock: productData.stock,
+      status: productData.status,
+      // imageUrl: productData.imageUrl, // Uncomment if you plan to use imageUrl
       createdAt: now,
       updatedAt: now,
     };
@@ -141,22 +163,36 @@ export const getProductById = async (productId: string): Promise<Product | null>
  */
 export const updateProduct = async (productId: string, productData: Partial<Omit<ProductData, 'sellerId' | 'createdAt'>>): Promise<void> => {
   try {
-    // Get a reference to the specific document
+    console.log(`[firestoreActions] Attempting to update product. ID: ${productId}`, JSON.stringify(productData, null, 2)); // Enhanced log
     const docRef = doc(db, 'products', productId);
 
-    // Add or update the updatedAt timestamp
+    // Ensure storeId is not accidentally removed if it's not in productData but should be preserved.
+    // However, the current Omit type for productData in the function signature already excludes sellerId and createdAt.
+    // If storeId is also meant to be immutable or handled differently, adjust the type and logic here.
+    // For now, we assume productData contains all fields intended for update.
+
     const dataToUpdate = {
       ...productData,
       updatedAt: Timestamp.now(),
     };
 
-    // Update the document
+    console.log('[firestoreActions] Data being sent to Firestore for update:', JSON.stringify(dataToUpdate, null, 2)); // New log
+
     await updateDoc(docRef, dataToUpdate);
 
-    console.log("Product updated successfully:", productId);
-  } catch (error) {
-    console.error("Error updating product:", error);
-    throw error;
+    console.log("[firestoreActions] Product updated successfully:", productId);
+  } catch (error: any) { // Catch as 'any' to access potential Firestore error properties
+    console.error("[firestoreActions] Error updating product:", error);
+    console.error(`[firestoreActions] Failed to update product. ID: ${productId}, Data:`, JSON.stringify(productData, null, 2));
+    // Log specific Firestore error details if available
+    if (error.code) {
+      console.error(`[firestoreActions] Firestore Error Code: ${error.code}`);
+    }
+    if (error.message) {
+      console.error(`[firestoreActions] Firestore Error Message: ${error.message}`);
+    }
+    console.error('[firestoreActions] Full Firestore error object:', JSON.stringify(error, null, 2)); // Log the full error object
+    throw error; // Re-throw the original error
   }
 };
 
@@ -231,6 +267,27 @@ export const getUserProfile = async (uid: string): Promise<UserProfile | null> =
     }
   } catch (error) {
     console.error("Error getting user profile:", error);
+    throw error;
+  }
+};
+
+/**
+ * Gets all stores for a specific owner.
+ * @param ownerId The ID of the owner (seller).
+ * @returns Promise<Store[]> An array of stores belonging to the owner.
+ */
+export const getStoresByOwner = async (ownerId: string): Promise<Store[]> => {
+  try {
+    const q = query(storesCollection, where("ownerId", "==", ownerId));
+    const querySnapshot = await getDocs(q);
+    const stores: Store[] = querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data() as Omit<Store, 'id'> // Cast data, id is from doc.id
+    }));
+    console.log(`Fetched ${stores.length} stores for owner ${ownerId}`);
+    return stores;
+  } catch (error) {
+    console.error("Error getting stores by owner:", error);
     throw error;
   }
 };

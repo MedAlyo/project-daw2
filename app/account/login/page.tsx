@@ -75,28 +75,28 @@ function LoginPageContent() {
 
       // Check if email is verified first
       if (firebaseUser && !firebaseUser.emailVerified) {
-        setIsLoading(false); // Stop loading indicator
-        router.push('/account/verify-email'); // Redirect to verify email page
-        return; // Important: exit the function after redirection
+        setIsLoading(false);
+        console.log('Redirecting to verify email page: /account/verify-email');
+        router.push('/account/verify-email');
+        return;
       }
 
-      // Email is verified, proceed to fetch profile and redirect
       if (firebaseUser && firebaseUser.emailVerified) {
         try {
-          // Directly fetch the user profile to get the role for immediate redirection
           const userProfile = await getUserProfile(firebaseUser.uid);
-          setIsLoading(false); // Stop loading indicator before navigation
+          setIsLoading(false);
 
           if (userProfile?.role === 'seller') {
+            console.log('Redirecting seller to dashboard: /dashboard/seller');
             router.push('/dashboard/seller');
           } else if (userProfile?.role === 'buyer') {
+            console.log('Redirecting buyer to dashboard: /dashboard/buyer');
             router.push('/dashboard/buyer');
           } else {
-            // Fallback if role is not found in profile or is unexpected
-            console.warn(`Login successful for ${firebaseUser.uid}, but profile role is missing or unexpected: '${userProfile?.role}'. Redirecting to home.`);
+            console.log(`Redirecting to home due to unexpected role: '${userProfile?.role}'`);
             router.push('/');
           }
-          return; // Important: exit the function after successful redirection
+          return;
         } catch (profileError) {
           console.error("Error fetching user profile after login:", profileError);
           setError('Login successful, but failed to retrieve your user details. Please try again or contact support.');
