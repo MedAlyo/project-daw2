@@ -12,44 +12,32 @@ import {
   updateDoc,
   deleteDoc,
   Timestamp,
+  orderBy,
 } from 'firebase/firestore';
 
-// Define the path to your collections
 const productsCollection = collection(db, 'products');
-const usersCollection = collection(db, 'users'); // Collection for user profiles
-const storesCollection = collection(db, 'stores'); // <-- ADDED: Collection for stores
+const usersCollection = collection(db, 'users');
+const storesCollection = collection(db, 'stores');
+const ordersCollection = collection(db, 'orders');
 
-// Define the Store interface
-export interface Store {
-  id: string; // Document ID from Firestore
-  ownerId: string; // UID of the seller who owns the store
-  name: string;
-  // Add other store-specific fields here, e.g., description, logoUrl, etc.
-  createdAt: Timestamp;
-  updatedAt?: Timestamp; // Optional: if you track updates
-}
 
-// Define the Product interface (should match the one in your components)
-// Using Timestamp for date fields is generally better practice with Firestore
 interface ProductData {
   sellerId: string;
-  storeId: string; // <-- ADDED: Store ID to associate product with a store
+  storeId: string;
   name: string;
   description: string;
   price: number;
   stock: number;
-  status: 'active' | 'draft'; // Added status here
-  imageUrl?: string; // Optional image URL
+  status: 'active' | 'draft';
+  imageUrl?: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
 
-// Interface for a product document retrieved from Firestore, including its ID
 export interface Product extends ProductData { 
-    id: string; // Add id for fetched products
+    id: string;
 }
 
-// Define the UserProfile interface
 interface UserProfile {
   uid: string; // Firebase Auth User ID
   displayName: string; // Username
@@ -57,6 +45,58 @@ interface UserProfile {
   createdAt: Timestamp;
 }
 
+// Define the Order interface
+export interface OrderItem {
+  productId: string;
+  name: string;
+  price: number;
+  quantity: number;
+  imageUrl?: string;
+}
+
+export interface Order {
+  id: string;
+  sellerId: string;
+  buyerId: string;
+  buyerName: string;
+  buyerEmail: string;
+  items: OrderItem[];
+  total: number;
+  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
+  shippingAddress: {
+    street: string;
+    city: string;
+    state: string;
+    postalCode: string;
+    country: string;
+  };
+  paymentStatus: 'pending' | 'paid' | 'refunded' | 'failed';
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+export interface Store {
+  id?: string;
+  ownerId: string;
+  name: string;
+  description: string;
+  address: string;
+  city: string;
+  country: string;
+  postalCode: string;
+  location: {
+    lat: number;
+    lng: number;
+  };
+  phone: string;
+  email: string;
+  logoUrl?: string;
+  bannerUrl?: string;
+  categories: string[];
+  isActive: boolean;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
 
 /**
  * Adds a new product to Firestore.
@@ -288,6 +328,96 @@ export const getStoresByOwner = async (ownerId: string): Promise<Store[]> => {
     return stores;
   } catch (error) {
     console.error("Error getting stores by owner:", error);
+    throw error;
+  }
+};
+
+/**
+ * Gets all orders for a specific seller, optionally filtered by status
+ * @param sellerId The ID of the seller
+ * @param status Optional status to filter orders (e.g., 'pending', 'processing')
+ * @returns Promise<Order[]> An array of orders for the seller
+ */
+export const getOrdersBySeller = async (sellerId: string, status?: string): Promise<Order[]> => {
+  try {
+    let q;
+    
+    if (status) {
+      // Query orders for this seller with the specified status
+      q = query(
+        ordersCollection,
+        where('sellerId', '==', sellerId),
+        where('status', '==', status),
+        orderBy('createdAt', 'desc')
+      );
+    } else {
+      // Query all orders for this seller
+      q = query(
+        ordersCollection,
+        where('sellerId', '==', sellerId),
+        orderBy('createdAt', 'desc')
+      );
+    }
+
+    const querySnapshot = await getDocs(q);
+
+    const orders: Order[] = querySnapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data() as Omit<Order, 'id'>
+    }));
+
+    console.log(`Fetched ${orders.length} orders for seller ${sellerId}${status ? ` with status ${status}` : ''}`);
+    return orders;
+  } catch (error) {
+    console.error('Error getting orders by seller:', error);
+    throw error;
+  }
+};
+
+/**
+ * Updates the status of an order
+ * @param orderId The ID of the order to update
+ * @param newStatus The new status to set
+ * @returns Promise<void>
+ */
+export const updateOrderStatus = async (orderId: string, newStatus: Order['status']): Promise<void> => {
+  try {
+    const orderRef = doc(db, 'orders', orderId);
+    await updateDoc(orderRef, {
+      status: newStatus,
+      updatedAt: Timestamp.now()
+    });
+    console.log(`Order ${orderId} status updated to ${newStatus}`);
+  } catch (error) {
+    console.error('Error updating order status:', error);
+    throw error;
+  }
+};
+
+export const createStore = async (storeData: Omit<Store, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> => {
+  try {
+    const now = Timestamp.now();
+    const docRef = await addDoc(collection(db, 'stores'), {
+      ...storeData,
+      isActive: true,
+      createdAt: now,
+      updatedAt: now,
+    });
+    return docRef.id;
+  } catch (error) {
+    console.error('Error creating store:', error);
+    throw error;
+  }
+};
+
+export const updateStore = async (storeId: string, storeData: Partial<Store>): Promise<void> => {
+  try {
+    await updateDoc(doc(db, 'stores', storeId), {
+      ...storeData,
+      updatedAt: Timestamp.now(),
+    });
+  } catch (error) {
+    console.error('Error updating store:', error);
     throw error;
   }
 };
