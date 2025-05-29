@@ -48,6 +48,11 @@ const Header: React.FC = () => {
           ) : user ? (
             // Logged in state - Medium gray links, subtle red for logout
             <>
+              {user.role === 'seller' && (
+                <Link href="/dashboard/seller" className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">
+                  Seller Dashboard
+                </Link>
+              )}
               <Link href="/account/profile" className="text-sm font-medium text-gray-600 hover:text-gray-900 transition-colors">
                 Account
               </Link>

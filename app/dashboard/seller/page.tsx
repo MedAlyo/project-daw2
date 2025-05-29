@@ -17,6 +17,7 @@ export default function SellerDashboardPage() {
   const [currentStoreId, setCurrentStoreId] = useState<string | null>(null);
   const [pendingOrders, setPendingOrders] = useState<Order[]>([]);
   const [isLoadingOrders, setIsLoadingOrders] = useState(false);
+  const [isAddProductFormVisible, setIsAddProductFormVisible] = useState(false); // New state for form visibility
 
   // Function to fetch/refresh products
   const fetchSellerProducts = async () => {
@@ -198,16 +199,35 @@ export default function SellerDashboardPage() {
         </div>
       )}
 
-      {/* Section to Add New Product */}
+      {/* Section to Add New Product - Now Collapsible */}
       <div className="mb-8">
-        {/* Pass currentStoreId to CreateProductForm */}
-        {currentStoreId ? (
+        <button
+          onClick={() => setIsAddProductFormVisible(!isAddProductFormVisible)}
+          className="flex items-center justify-center w-full px-4 py-2 mb-4 text-lg font-medium text-white bg-green-600 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
+        >
+          {isAddProductFormVisible ? 'Hide Add Product Form' : 'Show Add Product Form'}
+          <svg
+            className={`w-5 h-5 ml-2 transform transition-transform duration-200 ${isAddProductFormVisible ? 'rotate-180' : ''}`}
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+
+        {isAddProductFormVisible && currentStoreId && currentStoreId !== 'error' && currentStoreId !== 'no-store' ? (
           <CreateProductForm
             onProductCreated={handleProductCreated}
             storeId={currentStoreId}
           />
-        ) : (
-          <p className="text-orange-500">Store information is loading or not available. Cannot add products.</p>
+        ) : isAddProductFormVisible && (
+          <p className="text-orange-500">
+            {currentStoreId === 'error' ? 'Store information is not available. Cannot add products.' :
+             currentStoreId === 'no-store' ? 'Please create a store before adding products.' :
+             'Store information is loading. Cannot add products yet.'}
+          </p>
         )}
       </div>
 
@@ -289,7 +309,7 @@ export default function SellerDashboardPage() {
           ) : (
             <div className="text-center py-8">
               <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
               </svg>
               <h3 className="mt-2 text-sm font-medium text-gray-900">No pending orders</h3>
               <p className="mt-1 text-sm text-gray-500">New orders will appear here when customers purchase your products.</p>

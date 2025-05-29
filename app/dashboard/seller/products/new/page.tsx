@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 // Assuming you'll create Firestore functions
-import { addProduct } from '@/lib/firebase/firestoreActions'; // Import addProduct
+import { addProduct, getStoresByOwner } from '@/lib/firebase/firestoreActions'; // Import addProduct and getStoresByOwner
+import { Timestamp } from 'firebase/firestore'; // Import Timestamp
 
 /**
  * Seller Add New Product Page
@@ -20,22 +21,40 @@ export default function AddNewProductPage() {
   const [price, setPrice] = useState<string>(''); // Use string for input
   const [stock, setStock] = useState<string>(''); // Use string for input
   const [imageUrl, setImageUrl] = useState<string>('');
+  const [storeId, setStoreId] = useState<string | null>(null); // State for storeId
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  // Protect the route
+  // Protect the route and fetch storeId
   useEffect(() => {
     if (!loading && !user) {
       router.push('/account/login');
+    } else if (user && user.uid) {
+      // Fetch store ID for the current seller
+      const fetchStoreId = async () => {
+        try {
+          const stores = await getStoresByOwner(user.uid);
+          if (stores.length > 0) {
+            setStoreId(stores[0].id ?? null); // Use ?? null to handle potential undefined
+          } else {
+            setError('No store found for this seller. Please create a store first.');
+            // Optionally, disable the form or redirect
+          }
+        } catch (err) {
+          console.error('Error fetching store ID:', err);
+          setError('Could not load store information. Please try again.');
+        }
+      };
+      fetchStoreId();
     }
   }, [user, loading, router]);
 
-  // Show loading state while checking auth
-  if (loading || !user) {
+  // Show loading state while checking auth or fetching storeId
+  if (loading || !user || !storeId && !error) { // Also wait for storeId unless there's an error
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-200px)]">
-        <p className="text-gray-700">Loading user information...</p>
+        <p className="text-gray-700">Loading user and store information...</p>
       </div>
     );
   }
@@ -44,6 +63,12 @@ export default function AddNewProductPage() {
     event.preventDefault();
     setError(null);
     setSuccess(null);
+
+    if (!storeId) {
+      setError('Store ID is not available. Cannot add product.');
+      return;
+    }
+
     setIsLoading(true);
 
     // Basic validation
@@ -76,13 +101,17 @@ export default function AddNewProductPage() {
       price: priceNumber,
       stock: stockNumber,
       imageUrl, // Optional
-      // createdAt and updatedAt will be added in the firestoreActions function
+      storeId: storeId, // Use the fetched storeId
+      status: 'active' as 'active' | 'draft', // Default status, adjust as needed
+      // createdAt and updatedAt are now added here to satisfy ProductData interface.
+      // Ideally, firestoreActions.ts should handle this internally if that's the desired pattern.
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
     };
 
     try {
-      // TODO: Implement addProduct function in firestoreActions.ts
       // This function should add the productData to the 'products' collection
-      await addProduct(productData); // Call the imported addProduct function
+      await addProduct(productData);
 
       setSuccess('Product added successfully!');
       // Clear form or redirect
@@ -106,6 +135,17 @@ export default function AddNewProductPage() {
     <div className="container mx-auto px-4 py-8">
       <h1 className="text-3xl font-bold text-gray-900 mb-6">Add New Product</h1>
 
+      {error && (
+        <div className="mb-4 p-3 bg-red-100 text-red-700 rounded">
+          {error}
+        </div>
+      )}
+      {success && (
+        <div className="mb-4 p-3 bg-green-100 text-green-700 rounded">
+          {success}
+        </div>
+      )}
+
       <div className="w-full max-w-lg bg-white p-8 rounded-lg shadow border border-gray-200">
         <form onSubmit={handleSubmit} className="space-y-5">
           {/* Name */}
@@ -118,7 +158,7 @@ export default function AddNewProductPage() {
               onChange={(e) => setName(e.target.value)}
               required
               className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm disabled:opacity-70"
-              disabled={isLoading}
+              disabled={isLoading || !storeId} // Disable if loading or no storeId
             />
           </div>
 
@@ -132,7 +172,7 @@ export default function AddNewProductPage() {
               required
               rows={4}
               className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm disabled:opacity-70"
-              disabled={isLoading}
+              disabled={isLoading || !storeId}
             ></textarea>
           </div>
 
@@ -148,7 +188,7 @@ export default function AddNewProductPage() {
               min="0"
               step="0.01"
               className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm disabled:opacity-70"
-              disabled={isLoading}
+              disabled={isLoading || !storeId}
             />
           </div>
 
@@ -164,7 +204,7 @@ export default function AddNewProductPage() {
               min="0"
               step="1"
               className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm disabled:opacity-70"
-              disabled={isLoading}
+              disabled={isLoading || !storeId}
             />
           </div>
 
@@ -177,23 +217,15 @@ export default function AddNewProductPage() {
               value={imageUrl}
               onChange={(e) => setImageUrl(e.target.value)}
               className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm disabled:opacity-70"
-              disabled={isLoading}
+              disabled={isLoading || !storeId}
             />
           </div>
-
-
-          {success && (
-            <p className="text-green-600 text-sm text-center">{success}</p>
-          )}
-          {error && (
-            <p className="text-red-600 text-sm text-center">{error}</p>
-          )}
 
           {/* Submit Button */}
           <div>
             <button
               type="submit"
-              disabled={isLoading}
+              disabled={isLoading || !storeId} // Disable if loading or no storeId
               className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
             >
               {isLoading ? 'Adding Product...' : 'Add Product'}

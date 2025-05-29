@@ -421,3 +421,33 @@ export const updateStore = async (storeId: string, storeData: Partial<Store>): P
     throw error;
   }
 };
+
+
+
+export interface Product extends ProductData {
+  id: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+// Product Functions
+
+/**
+ * Adds a new product listing to Firestore.
+ * @param productData The data for the new product.
+ * @returns The ID of the newly created product document.
+ */
+export async function addProduct(productData: ProductData): Promise<string> {
+  try {
+    const docRef = await addDoc(productsCollection, {
+      ...productData,
+      createdAt: Timestamp.now(),
+      updatedAt: Timestamp.now(),
+    });
+    console.log('Product added with ID: ', docRef.id);
+    return docRef.id;
+  } catch (e) {
+    console.error('Error adding product: ', e);
+    throw new Error('Failed to add product.');
+  }
+}
