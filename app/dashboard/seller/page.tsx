@@ -270,14 +270,14 @@ export default function SellerDashboardPage() {
                     <div>
                       <p className="font-medium">Order #{order.id}</p>
                       <p className="text-sm text-gray-500">
-                        {order.buyerName} • {order.items.length} {order.items.length === 1 ? 'item' : 'items'}
+                        {order.buyerName || 'N/A'} • {order.items.length} {order.items.length === 1 ? 'item' : 'items'}
                       </p>
                       <p className="text-sm text-gray-500">
                         {new Date(order.createdAt.seconds * 1000).toLocaleDateString()}
                       </p>
                     </div>
                     <div className="text-right">
-                      <p className="font-semibold">${order.total.toFixed(2)}</p>
+                      <p className="font-semibold">${order.totalAmount.toFixed(2)}</p>
                       <span className={`px-2 py-1 text-xs rounded-full ${order.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
                         order.status === 'processing' ? 'bg-blue-100 text-blue-800' :
                           'bg-gray-100 text-gray-800'

@@ -17,7 +17,7 @@ export default function EditProductPage() {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [price, setPrice] = useState('');
-  const [stock, setStock] = useState('');
+  const [stockQuantity, setStockQuantity] = useState(''); // Renamed from stock to stockQuantity
   const [status, setStatus] = useState<'active' | 'draft'>('draft');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -49,7 +49,7 @@ export default function EditProductPage() {
               setName(fetchedProduct.name);
               setDescription(fetchedProduct.description);
               setPrice(fetchedProduct.price.toString());
-              setStock(fetchedProduct.stock.toString());
+              setStockQuantity(fetchedProduct.stockQuantity.toString()); // Changed from fetchedProduct.stock
               setStatus(fetchedProduct.status);
             }
           } else {
@@ -77,13 +77,13 @@ export default function EditProductPage() {
     }
 
     // Basic Validation
-    if (!name.trim() || !description.trim() || !price.trim() || !stock.trim()) {
+    if (!name.trim() || !description.trim() || !price.trim() || !stockQuantity.trim()) { // Changed from stock.trim()
       setError('All fields except image are required.');
       console.error('Update failed: Validation error - missing fields.');
       return;
     }
     const numericPrice = parseFloat(price);
-    const numericStock = parseInt(stock, 10);
+    const numericStock = parseInt(stockQuantity, 10); // Changed from stock
     if (isNaN(numericPrice) || numericPrice <= 0) {
       setError('Price must be a positive number.');
       console.error('Update failed: Validation error - invalid price.');
@@ -91,7 +91,7 @@ export default function EditProductPage() {
     }
     if (isNaN(numericStock) || numericStock < 0) {
       setError('Stock must be a non-negative number.');
-      console.error('Update failed: Validation error - invalid stock.');
+      console.error('Update failed: Validation error - invalid stock.'); // Consider changing log message too
       return;
     }
 
@@ -101,7 +101,7 @@ export default function EditProductPage() {
         name: name.trim(),
         description: description.trim(),
         price: numericPrice,
-        stock: numericStock,
+        stockQuantity: numericStock, // Changed from stock
         status,
       };
       console.log('Attempting to update product with ID:', productId, 'Data:', productDataToUpdate);
@@ -232,14 +232,14 @@ export default function EditProductPage() {
                 </label>
                 <input
                   type="number"
-                  name="stock"
-                  id="stock"
+                  name="stock" // HTML name attribute can remain 'stock' if preferred, but ensure consistency
+                  id="stock"   // HTML id attribute can remain 'stock' if preferred
                   required
                   min="0"
                   step="1"
                   className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                  value={stock}
-                  onChange={(e) => setStock(e.target.value)}
+                  value={stockQuantity} // Changed from stock
+                  onChange={(e) => setStockQuantity(e.target.value)} // Changed from setStock
                   disabled={isLoading}
                 />
               </div>

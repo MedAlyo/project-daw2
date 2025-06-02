@@ -14,12 +14,23 @@ import {
   Timestamp,
   orderBy,
 } from 'firebase/firestore';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage'; // <-- ADDED: Firebase Storage imports
 
 const productsCollection = collection(db, 'products');
 const usersCollection = collection(db, 'users');
 const storesCollection = collection(db, 'stores');
 const ordersCollection = collection(db, 'orders');
 
+// User Profile Interface
+export interface UserProfile {
+  uid: string;
+  email: string | null;
+  displayName: string | null;
+  role: 'buyer' | 'seller'; // Example roles
+  storeId?: string; // Optional: if the user is a seller
+  createdAt: Timestamp;
+  // Add other profile fields as needed
+}
 
 interface ProductData {
   sellerId: string;
@@ -27,408 +38,45 @@ interface ProductData {
   name: string;
   description: string;
   price: number;
-  stock: number;
+  // stock: number; // Changed from stock
+  stockQuantity: number; // Changed to stockQuantity
   status: 'active' | 'draft';
-  imageUrl?: string;
+  // imageUrl?: string; // Changed from imageUrl
+  images?: string[]; // Changed to images (array of strings, optional)
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
 
 export interface Product extends ProductData { 
-    id: string;
-}
-
-interface UserProfile {
-  uid: string; // Firebase Auth User ID
-  displayName: string; // Username
-  role: 'buyer' | 'seller'; // User's role
-  createdAt: Timestamp;
-}
-
-// Define the Order interface
-export interface OrderItem {
-  productId: string;
-  name: string;
-  price: number;
-  quantity: number;
-  imageUrl?: string;
-}
-
-export interface Order {
-  id: string;
-  sellerId: string;
-  buyerId: string;
-  buyerName: string;
-  buyerEmail: string;
-  items: OrderItem[];
-  total: number;
-  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
-  shippingAddress: {
-    street: string;
-    city: string;
-    state: string;
-    postalCode: string;
-    country: string;
-  };
-  paymentStatus: 'pending' | 'paid' | 'refunded' | 'failed';
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
-}
-
-export interface Store {
-  id?: string;
-  ownerId: string;
-  name: string;
-  description: string;
-  address: string;
-  city: string;
-  country: string;
-  postalCode: string;
-  location: {
-    lat: number;
-    lng: number;
-  };
-  phone: string;
-  email: string;
-  logoUrl?: string;
-  bannerUrl?: string;
-  categories: string[];
-  isActive: boolean;
-  createdAt: Timestamp;
-  updatedAt: Timestamp;
-}
-
-/**
- * Adds a new product to Firestore.
- * @param sellerUid The ID of the seller.
- * @param storeId The ID of the store this product belongs to.
- * @param productData The product data to add (excluding createdAt/updatedAt).
- * @returns Promise<string> The ID of the newly created document.
- */
-export const createProductListing = async (sellerUid: string, storeId: string, productData: Omit<Product, 'id' | 'sellerId' | 'storeId' | 'createdAt' | 'updatedAt' | 'imageUrl'>): Promise<string> => {
-  try {
-    // Add createdAt and updatedAt timestamps
-    const now = Timestamp.now();
-    const dataToSave: ProductData = {
-      sellerId: sellerUid, 
-      storeId: storeId, // <-- ADDED: Save the storeId
-      name: productData.name,
-      description: productData.description,
-      price: productData.price,
-      stock: productData.stock,
-      status: productData.status,
-      // imageUrl: productData.imageUrl, // Uncomment if you plan to use imageUrl
-      createdAt: now,
-      updatedAt: now,
-    };
-
-    // Add the document to the 'products' collection
-    const docRef = await addDoc(productsCollection, dataToSave);
-
-    console.log("Product added with ID:", docRef.id);
-    return docRef.id; // Return the ID of the new document
-  } catch (error) {
-    console.error("Error adding product:", error);
-    throw error; // Re-throw the error for handling in the component
-  }
-};
-
-
-/**
- * Gets all products for a specific seller.
- * @param sellerId The ID of the seller.
- * @returns Promise<Product[]> An array of products belonging to the seller.
- */
-export const getProductsBySeller = async (sellerId: string): Promise<Product[]> => {
-  try {
-    // Create a query to filter products by sellerId
-    const q = query(productsCollection, where("sellerId", "==", sellerId));
-
-    // Execute the query
-    const querySnapshot = await getDocs(q);
-
-    // Map the documents to Product objects, including the document ID
-    const products: Product[] = querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data() as ProductData // Cast data to ProductData interface
-    }));
-
-    console.log(`Fetched ${products.length} products for seller ${sellerId}`);
-    return products;
-  } catch (error) {
-    console.error("Error getting products by seller:", error);
-    throw error;
-  }
-};
-
-
-/**
- * Gets a single product by its ID.
- * @param productId The ID of the product document.
- * @returns Promise<Product | null> The product data or null if not found.
- */
-export const getProductById = async (productId: string): Promise<Product | null> => {
-  try {
-    // Get a reference to the specific document
-    const docRef = doc(db, 'products', productId);
-
-    // Get the document snapshot
-    const docSnap = await getDoc(docRef);
-
-    // Check if the document exists
-    if (docSnap.exists()) {
-      console.log("Product data:", docSnap.data());
-      // Return the product data including the ID
-      return {
-        id: docSnap.id,
-        ...docSnap.data() as ProductData
-      };
-    } else {
-      // Document does not exist
-      console.log("No such product document!");
-      return null;
-    }
-  } catch (error) {
-    console.error("Error getting product by ID:", error);
-    throw error;
-  }
-};
-
-
-/**
- * Updates an existing product document.
- * @param productId The ID of the product document to update.
- * @param productData The updated product data (excluding sellerId, createdAt).
- * @returns Promise<void>
- */
-export const updateProduct = async (productId: string, productData: Partial<Omit<ProductData, 'sellerId' | 'createdAt'>>): Promise<void> => {
-  try {
-    console.log(`[firestoreActions] Attempting to update product. ID: ${productId}`, JSON.stringify(productData, null, 2)); // Enhanced log
-    const docRef = doc(db, 'products', productId);
-
-    // Ensure storeId is not accidentally removed if it's not in productData but should be preserved.
-    // However, the current Omit type for productData in the function signature already excludes sellerId and createdAt.
-    // If storeId is also meant to be immutable or handled differently, adjust the type and logic here.
-    // For now, we assume productData contains all fields intended for update.
-
-    const dataToUpdate = {
-      ...productData,
-      updatedAt: Timestamp.now(),
-    };
-
-    console.log('[firestoreActions] Data being sent to Firestore for update:', JSON.stringify(dataToUpdate, null, 2)); // New log
-
-    await updateDoc(docRef, dataToUpdate);
-
-    console.log("[firestoreActions] Product updated successfully:", productId);
-  } catch (error: any) { // Catch as 'any' to access potential Firestore error properties
-    console.error("[firestoreActions] Error updating product:", error);
-    console.error(`[firestoreActions] Failed to update product. ID: ${productId}, Data:`, JSON.stringify(productData, null, 2));
-    // Log specific Firestore error details if available
-    if (error.code) {
-      console.error(`[firestoreActions] Firestore Error Code: ${error.code}`);
-    }
-    if (error.message) {
-      console.error(`[firestoreActions] Firestore Error Message: ${error.message}`);
-    }
-    console.error('[firestoreActions] Full Firestore error object:', JSON.stringify(error, null, 2)); // Log the full error object
-    throw error; // Re-throw the original error
-  }
-};
-
-
-/**
- * Deletes a product document.
- * @param productId The ID of the product document to delete.
- * @returns Promise<void>
- */
-export const deleteProduct = async (productId: string): Promise<void> => {
-  try {
-    // Get a reference to the specific document
-    const docRef = doc(db, 'products', productId);
-
-    // Delete the document
-    await deleteDoc(docRef);
-
-    console.log("Product deleted successfully:", productId);
-  } catch (error) {
-    console.error("Error deleting product:", error);
-    throw error;
-  }
-};
-
-/**
- * Creates a user profile document in Firestore.
- * The document ID will be the user's Firebase Auth UID.
- * @param uid - The Firebase Auth User ID.
- * @param displayName - The user's chosen display name (username).
- * @param role - The user's chosen role ('buyer' or 'seller').
- * @returns Promise<void>
- */
-export const createUserProfile = async (uid: string, displayName: string, role: 'buyer' | 'seller'): Promise<void> => {
-  try {
-    // Get a reference to the document using the user's UID as the document ID
-    const userDocRef = doc(db, 'users', uid);
-
-    // Data to save in the user profile document
-    const profileData: UserProfile = {
-      uid,
-      displayName,
-      role,
-      createdAt: Timestamp.now(), // Add creation timestamp
-    };
-
-    // Use setDoc to create the document with the specified UID
-    await setDoc(userDocRef, profileData);
-
-    console.log(`User profile created for UID: ${uid} with role: ${role}`);
-  } catch (error) {
-    console.error("Error creating user profile:", error);
-    throw error;
-  }
-};
-
-/**
- * Fetches a user profile document by UID.
- * @param uid - The Firebase Auth User ID.
- * @returns Promise<UserProfile | null> The user profile data or null if not found.
- */
-export const getUserProfile = async (uid: string): Promise<UserProfile | null> => {
-  try {
-    const userDocRef = doc(db, 'users', uid);
-    const docSnap = await getDoc(userDocRef);
-
-    if (docSnap.exists()) {
-      console.log("User profile data:", docSnap.data());
-      return docSnap.data() as UserProfile;
-    } else {
-      console.log("No user profile document found for UID:", uid);
-      return null;
-    }
-  } catch (error) {
-    console.error("Error getting user profile:", error);
-    throw error;
-  }
-};
-
-/**
- * Gets all stores for a specific owner.
- * @param ownerId The ID of the owner (seller).
- * @returns Promise<Store[]> An array of stores belonging to the owner.
- */
-export const getStoresByOwner = async (ownerId: string): Promise<Store[]> => {
-  try {
-    const q = query(storesCollection, where("ownerId", "==", ownerId));
-    const querySnapshot = await getDocs(q);
-    const stores: Store[] = querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data() as Omit<Store, 'id'> // Cast data, id is from doc.id
-    }));
-    console.log(`Fetched ${stores.length} stores for owner ${ownerId}`);
-    return stores;
-  } catch (error) {
-    console.error("Error getting stores by owner:", error);
-    throw error;
-  }
-};
-
-/**
- * Gets all orders for a specific seller, optionally filtered by status
- * @param sellerId The ID of the seller
- * @param status Optional status to filter orders (e.g., 'pending', 'processing')
- * @returns Promise<Order[]> An array of orders for the seller
- */
-export const getOrdersBySeller = async (sellerId: string, status?: string): Promise<Order[]> => {
-  try {
-    let q;
-    
-    if (status) {
-      // Query orders for this seller with the specified status
-      q = query(
-        ordersCollection,
-        where('sellerId', '==', sellerId),
-        where('status', '==', status),
-        orderBy('createdAt', 'desc')
-      );
-    } else {
-      // Query all orders for this seller
-      q = query(
-        ordersCollection,
-        where('sellerId', '==', sellerId),
-        orderBy('createdAt', 'desc')
-      );
-    }
-
-    const querySnapshot = await getDocs(q);
-
-    const orders: Order[] = querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data() as Omit<Order, 'id'>
-    }));
-
-    console.log(`Fetched ${orders.length} orders for seller ${sellerId}${status ? ` with status ${status}` : ''}`);
-    return orders;
-  } catch (error) {
-    console.error('Error getting orders by seller:', error);
-    throw error;
-  }
-};
-
-/**
- * Updates the status of an order
- * @param orderId The ID of the order to update
- * @param newStatus The new status to set
- * @returns Promise<void>
- */
-export const updateOrderStatus = async (orderId: string, newStatus: Order['status']): Promise<void> => {
-  try {
-    const orderRef = doc(db, 'orders', orderId);
-    await updateDoc(orderRef, {
-      status: newStatus,
-      updatedAt: Timestamp.now()
-    });
-    console.log(`Order ${orderId} status updated to ${newStatus}`);
-  } catch (error) {
-    console.error('Error updating order status:', error);
-    throw error;
-  }
-};
-
-export const createStore = async (storeData: Omit<Store, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> => {
-  try {
-    const now = Timestamp.now();
-    const docRef = await addDoc(collection(db, 'stores'), {
-      ...storeData,
-      isActive: true,
-      createdAt: now,
-      updatedAt: now,
-    });
-    return docRef.id;
-  } catch (error) {
-    console.error('Error creating store:', error);
-    throw error;
-  }
-};
-
-export const updateStore = async (storeId: string, storeData: Partial<Store>): Promise<void> => {
-  try {
-    await updateDoc(doc(db, 'stores', storeId), {
-      ...storeData,
-      updatedAt: Timestamp.now(),
-    });
-  } catch (error) {
-    console.error('Error updating store:', error);
-    throw error;
-  }
-};
-
-
-
-export interface Product extends ProductData {
   id: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
+
+// ADDED: Function to upload product image to Firebase Storage
+/**
+ * Uploads a product image to Firebase Storage.
+ * @param file The image file to upload.
+ * @param productId The ID of the product (used for path organization).
+ * @returns A promise that resolves to the download URL of the uploaded image.
+ */
+export const uploadProductImage = async (file: File, productId: string): Promise<string> => {
+  const storage = getStorage();
+  // Create a storage reference: products/{productId}/{fileName}
+  const storageRef = ref(storage, `products/${productId}/${file.name}`);
+
+  try {
+    // Upload the file
+    const snapshot = await uploadBytes(storageRef, file);
+    // Get the download URL
+    const downloadURL = await getDownloadURL(snapshot.ref);
+    console.log('File available at', downloadURL);
+    return downloadURL;
+  } catch (error) {
+    console.error('Error uploading image: ', error);
+    throw new Error('Failed to upload image.');
+  }
+};
 
 // Product Functions
 
@@ -437,13 +85,25 @@ export interface Product extends ProductData {
  * @param productData The data for the new product.
  * @returns The ID of the newly created product document.
  */
-export async function addProduct(productData: ProductData): Promise<string> {
+export const addProduct = async (sellerUid: string, storeId: string, productData: Omit<Product, 'id' | 'sellerId' | 'storeId' | 'createdAt' | 'updatedAt'>): Promise<string> => {
   try {
-    const docRef = await addDoc(productsCollection, {
-      ...productData,
-      createdAt: Timestamp.now(),
-      updatedAt: Timestamp.now(),
-    });
+    // Add createdAt and updatedAt timestamps
+    const now = Timestamp.now();
+    const dataToSave: ProductData = {
+      sellerId: sellerUid, 
+      storeId: storeId,
+      name: productData.name,
+      description: productData.description,
+      price: productData.price,
+      stockQuantity: productData.stockQuantity,
+      status: productData.status,
+      images: productData.images || [], // Ensure images is an array, default to empty if not provided
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    // Add the document to the 'products' collection
+    const docRef = await addDoc(productsCollection, dataToSave); // Changed to save dataToSave
     console.log('Product added with ID: ', docRef.id);
     return docRef.id;
   } catch (e) {
@@ -451,3 +111,249 @@ export async function addProduct(productData: ProductData): Promise<string> {
     throw new Error('Failed to add product.');
   }
 }
+
+/**
+ * Retrieves a single product by its ID from Firestore.
+ * @param productId The ID of the product to retrieve.
+ * @returns A promise that resolves to the product data or null if not found.
+ */
+export const getProductById = async (productId: string): Promise<Product | null> => {
+  try {
+    const productDocRef = doc(productsCollection, productId);
+    const productDocSnap = await getDoc(productDocRef);
+
+    if (productDocSnap.exists()) {
+      return { id: productDocSnap.id, ...productDocSnap.data() } as Product;
+    } else {
+      console.log('No such product!');
+      return null;
+    }
+  } catch (error) {
+    console.error('Error fetching product by ID:', error);
+    throw new Error('Failed to fetch product.');
+  }
+};
+
+/**
+ * Updates an existing product in Firestore.
+ * @param productId The ID of the product to update.
+ * @param updatedData An object containing the fields to update.
+ * @returns A promise that resolves when the product is updated.
+ */
+export const updateProduct = async (productId: string, updatedData: Partial<ProductData>): Promise<void> => {
+  try {
+    const productDocRef = doc(productsCollection, productId);
+    await updateDoc(productDocRef, {
+      ...updatedData,
+      updatedAt: Timestamp.now(), // Always update the updatedAt timestamp
+    });
+    console.log(`Product with ID: ${productId} updated successfully.`);
+  } catch (error) {
+    console.error('Error updating product:', error);
+    throw new Error('Failed to update product.');
+  }
+};
+
+
+/**
+ * Retrieves all products listed by a specific seller.
+ * @param sellerId The ID of the seller.
+ * @returns A promise that resolves to an array of products.
+ */
+export const getProductsBySeller = async (sellerId: string): Promise<Product[]> => {
+  try {
+    const q = query(productsCollection, where('sellerId', '==', sellerId), orderBy('createdAt', 'desc'));
+    const querySnapshot = await getDocs(q);
+    const products = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+    return products;
+  } catch (error) {
+    console.error('Error fetching products by seller:', error);
+    throw new Error('Failed to fetch products by seller.');
+  }
+};
+
+/**
+ * Deletes a product from Firestore.
+ * @param productId The ID of the product to delete.
+ * @returns A promise that resolves when the product is deleted.
+ */
+export const deleteProduct = async (productId: string): Promise<void> => {
+  try {
+    const productDocRef = doc(productsCollection, productId);
+    await deleteDoc(productDocRef);
+    console.log(`Product with ID: ${productId} deleted successfully.`);
+  } catch (error) {
+    console.error('Error deleting product:', error);
+    throw new Error('Failed to delete product.');
+  }
+};
+
+// User Functions
+
+/**
+ * Retrieves a user's profile from Firestore.
+ * @param uid The user's unique ID.
+ * @returns The user's profile data, or null if not found.
+ */
+export const getUserProfile = async (uid: string): Promise<UserProfile | null> => {
+  try {
+    const userDocRef = doc(usersCollection, uid);
+    const userDocSnap = await getDoc(userDocRef);
+
+    if (userDocSnap.exists()) {
+      return { uid, ...userDocSnap.data() } as UserProfile;
+    } else {
+      console.log('No such user profile!');
+      return null;
+    }
+  } catch (error) {
+    console.error('Error fetching user profile:', error);
+    throw new Error('Failed to fetch user profile.');
+  }
+};
+
+// TODO: Add other user-related functions like createUserProfile, updateUserProfile if they don't exist
+
+// Store Interface (Assuming a basic structure)
+export interface Store {
+  id: string;
+  ownerId: string; // This is the sellerId
+  name: string;
+  location: string; // Added location field
+  description?: string;
+  // Add other store-related fields
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+// Added StoreData interface for updates
+export interface StoreData {
+  name?: string;
+  location?: string;
+  description?: string;
+  // include other fields that can be updated
+}
+
+// Store Functions
+/**
+ * Retrieves all stores owned by a specific user.
+ * @param ownerId The ID of the store owner.
+ * @returns A promise that resolves to an array of stores.
+ */
+export const getStoresByOwner = async (ownerId: string): Promise<Store[]> => {
+  try {
+    const q = query(storesCollection, where('ownerId', '==', ownerId), orderBy('createdAt', 'desc'));
+    const querySnapshot = await getDocs(q);
+    const stores = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Store));
+    return stores;
+  } catch (error) {
+    console.error('Error fetching stores by owner:', error);
+    throw new Error('Failed to fetch stores by owner.');
+  }
+};
+
+/**
+ * Retrieves a single store by its seller's ID (ownerId).
+ * Assumes a seller has at most one store, returns the first one found.
+ * @param sellerId The ID of the seller (store owner).
+ * @returns A promise that resolves to the store data or null if not found.
+ */
+export const getStoreBySellerId = async (sellerId: string): Promise<Store | null> => {
+  try {
+    const q = query(storesCollection, where('ownerId', '==', sellerId), orderBy('createdAt', 'desc'));
+    const querySnapshot = await getDocs(q);
+    if (!querySnapshot.empty) {
+      // Return the first store found for the seller
+      const storeDoc = querySnapshot.docs[0];
+      return { id: storeDoc.id, ...storeDoc.data() } as Store;
+    }
+    return null; // No store found for this seller
+  } catch (error) {
+    console.error('Error fetching store by seller ID:', error);
+    throw new Error('Failed to fetch store by seller ID.');
+  }
+};
+
+/**
+ * Updates an existing store in Firestore.
+ * @param storeId The ID of the store to update.
+ * @param updatedData An object containing the fields to update.
+ * @returns A promise that resolves when the store is updated.
+ */
+export const updateStoreDetails = async (storeId: string, updatedData: Partial<StoreData>): Promise<void> => {
+  try {
+    const storeDocRef = doc(storesCollection, storeId);
+    await updateDoc(storeDocRef, {
+      ...updatedData,
+      updatedAt: Timestamp.now(), // Always update the updatedAt timestamp
+    });
+    console.log(`Store with ID: ${storeId} updated successfully.`);
+  } catch (error) {
+    console.error('Error updating store:', error);
+    throw new Error('Failed to update store.');
+  }
+};
+
+// TODO: Add other store-related functions like createStore, getStoreById, deleteStore if they don't exist
+
+// Order Interface
+export interface Order {
+  id: string;
+  buyerId: string;
+  buyerName?: string; // Added buyerName (optional for now)
+  sellerId: string;
+  storeId: string;
+  items: Array<{ productId: string; quantity: number; price: number }>; // Array of items in the order
+  totalAmount: number;
+  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
+  shippingAddress: object; // Or a more specific address interface
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+  // Add other order-related fields
+}
+
+// Order Functions
+/**
+ * Retrieves all orders for a specific seller, optionally filtered by status.
+ * @param sellerId The ID of the seller.
+ * @param status Optional order status to filter by.
+ * @returns A promise that resolves to an array of orders.
+ */
+export const getOrdersBySeller = async (sellerId: string, status?: Order['status']): Promise<Order[]> => {
+  try {
+    let q;
+    if (status) {
+      q = query(ordersCollection, where('sellerId', '==', sellerId), where('status', '==', status), orderBy('createdAt', 'desc'));
+    } else {
+      q = query(ordersCollection, where('sellerId', '==', sellerId), orderBy('createdAt', 'desc'));
+    }
+    const querySnapshot = await getDocs(q);
+    const orders = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order));
+    return orders;
+  } catch (error) {
+    console.error('Error fetching orders by seller:', error);
+    throw new Error('Failed to fetch orders by seller.');
+  }
+};
+
+/**
+ * Updates the status of an order.
+ * @param orderId The ID of the order to update.
+ * @param status The new status of the order.
+ * @returns A promise that resolves when the order status is updated.
+ */
+export const updateOrderStatus = async (orderId: string, status: Order['status']): Promise<void> => {
+  try {
+    const orderDocRef = doc(ordersCollection, orderId);
+    await updateDoc(orderDocRef, {
+      status: status,
+      updatedAt: Timestamp.now(),
+    });
+    console.log(`Order with ID: ${orderId} status updated to ${status}.`);
+  } catch (error) {
+    console.error('Error updating order status:', error);
+    throw new Error('Failed to update order status.');
+  }
+};
+
+// TODO: Add other order-related functions like createOrder, getOrderById if they don't exist

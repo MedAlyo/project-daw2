@@ -69,6 +69,11 @@ export default function AddNewProductPage() {
       return;
     }
 
+    if (!user || !user.uid) { // Ensure user and user.uid are available
+        setError('User not authenticated. Cannot add product.');
+        return;
+    }
+
     setIsLoading(true);
 
     // Basic validation
@@ -93,25 +98,19 @@ export default function AddNewProductPage() {
     }
 
 
-    // Prepare product data
-    const productData = {
-      sellerId: user.uid, // Associate product with the logged-in seller
+    // Prepare product data according to Omit<Product, 'id' | 'sellerId' | 'storeId' | 'createdAt' | 'updatedAt'>
+    const productDetails = {
       name,
       description,
       price: priceNumber,
-      stock: stockNumber,
-      imageUrl, // Optional
-      storeId: storeId, // Use the fetched storeId
+      stockQuantity: stockNumber, // Changed from stock to stockQuantity
+      images: imageUrl ? [imageUrl] : [], // Changed from imageUrl to images (array)
       status: 'active' as 'active' | 'draft', // Default status, adjust as needed
-      // createdAt and updatedAt are now added here to satisfy ProductData interface.
-      // Ideally, firestoreActions.ts should handle this internally if that's the desired pattern.
-      createdAt: Timestamp.now(),
-      updatedAt: Timestamp.now(),
     };
 
     try {
-      // This function should add the productData to the 'products' collection
-      await addProduct(productData);
+      // Call addProduct with sellerUid, storeId, and the productDetails object
+      await addProduct(user.uid, storeId, productDetails);
 
       setSuccess('Product added successfully!');
       // Clear form or redirect

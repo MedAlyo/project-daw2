@@ -20,7 +20,7 @@ export default function Home() {
           <input 
             type="text" 
             placeholder="Search products or shops..." 
-            className="px-4 py-2 border border-gray-300 rounded-md w-full sm:w-auto focus:ring-blue-500 focus:border-blue-500"
+            className="px-4 py-2 border border-black bg-white rounded-md w-full sm:w-auto focus:ring-blue-500 focus:border-blue-500"
           />
           <button className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-md w-full sm:w-auto">
             Search

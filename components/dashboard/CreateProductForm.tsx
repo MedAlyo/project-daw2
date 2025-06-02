@@ -2,7 +2,8 @@
 
 import React, { useState, FormEvent } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { createProductListing, Product } from '@/lib/firebase/firestoreActions';
+// Import uploadProductImage along with addProduct and Product
+import { addProduct, Product, uploadProductImage } from '@/lib/firebase/firestoreActions'; 
 
 interface CreateProductFormProps {
   onProductCreated: (productId: string) => void; // Callback after product is created
@@ -14,7 +15,8 @@ export default function CreateProductForm({ onProductCreated, storeId }: CreateP
   const [productName, setProductName] = useState('');
   const [description, setDescription] = useState('');
   const [price, setPrice] = useState('');
-  const [stock, setStock] = useState('');
+  const [stockQuantity, setStockQuantity] = useState(''); // Renamed from stock to stockQuantity
+  const [imageFile, setImageFile] = useState<File | null>(null); // <-- ADDED: State for the image file
   const [status, setStatus] = useState<'active' | 'draft'>('draft'); // Default to draft
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -33,13 +35,13 @@ export default function CreateProductForm({ onProductCreated, storeId }: CreateP
       return;
     }
 
-    if (!productName || !description || !price || !stock) {
+    if (!productName || !description || !price || !stockQuantity) { // Changed from !stock
       setError('Please fill in all required fields.');
       return;
     }
 
     const priceNum = parseFloat(price);
-    const stockNum = parseInt(stock, 10);
+    const stockNum = parseInt(stockQuantity, 10); // Changed from stock
 
     if (isNaN(priceNum) || priceNum <= 0) {
       setError('Please enter a valid price.');
@@ -51,25 +53,50 @@ export default function CreateProductForm({ onProductCreated, storeId }: CreateP
       return;
     }
 
+    // TODO: Add image validation if needed (e.g., file type, size)
+
     setIsLoading(true);
 
     try {
-      // Ensure the type here matches what createProductListing expects
-      // Omit fields that are auto-generated or come from elsewhere (like sellerUid, storeId)
-      const productData: Omit<Product, 'id' | 'sellerId' | 'storeId' | 'createdAt' | 'updatedAt' | 'imageUrl'> = {
+      let imageUrl = ''; // Initialize imageUrl
+
+      // First, create a temporary product ID for image path (optional, but good for organization)
+      // Alternatively, upload image after product creation if product ID is strictly needed for path
+      // For simplicity here, we'll generate a temporary ID or use a generic path if no imageFile
+      // A more robust solution might involve creating product doc first, then uploading image with actual product ID, then updating doc.
+
+      if (imageFile) {
+        // For the image path, we need a unique identifier. 
+        // Using user.uid and timestamp for a simple unique enough path for now.
+        // Ideally, you might want to create the product document first to get its ID
+        // and then use that ID in the image path for better organization.
+        // However, to keep this step simpler, we'll use a temporary unique enough string.
+        const tempImageId = `${user.uid}-${Date.now()}`;
+        imageUrl = await uploadProductImage(imageFile, tempImageId); 
+      }
+
+      const productData: Omit<Product, 'id' | 'sellerId' | 'storeId' | 'createdAt' | 'updatedAt'> = {
         name: productName,
         description,
         price: priceNum,
-        stock: stockNum,
-        status, 
+        stockQuantity: stockNum,
+        status,
+        images: imageUrl ? [imageUrl] : [], // Add the image URL if available
       };
-      // Pass user.uid as sellerUid, the storeId, and the productData
-      const productId = await createProductListing(user.uid, storeId, productData); // <-- UPDATED: Pass storeId
+
+      const productId = await addProduct(user.uid, storeId, productData);
+      // If you wanted to use the actual productId for the image path, you would:
+      // 1. Call addProduct without the image URL first (or with a placeholder).
+      // 2. Then, if imageFile exists, call uploadProductImage with the returned productId.
+      // 3. Finally, call an updateProduct function to add the imageUrl to the product document.
+      // This approach is more robust for linking images directly to product IDs in storage paths.
+
       setProductName('');
       setDescription('');
       setPrice('');
-      setStock('');
+      setStockQuantity(''); // Changed from setStock
       setStatus('draft');
+      setImageFile(null); // <-- ADDED: Reset image file state
       onProductCreated(productId); // Notify parent component
     } catch (err) {
       console.error('Failed to create product:', err);
@@ -124,12 +151,22 @@ export default function CreateProductForm({ onProductCreated, storeId }: CreateP
           <input
             type="number"
             id="stock"
-            value={stock}
-            onChange={(e) => setStock(e.target.value)}
+            value={stockQuantity} // Changed from stock
+            onChange={(e) => setStockQuantity(e.target.value)} // Changed from setStock
             required
             min="0"
             step="1"
             className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+          />
+        </div>
+        <div>
+          <label htmlFor="image" className="block text-sm font-medium text-gray-700">Product Image</label>
+          <input
+            type="file"
+            id="image"
+            accept="image/*" // Accept only image files
+            onChange={(e) => setImageFile(e.target.files ? e.target.files[0] : null)}
+            className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
           />
         </div>
         <div>

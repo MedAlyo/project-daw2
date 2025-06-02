@@ -5,16 +5,16 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 // Assuming you'll create Firestore functions in a new file, e.g., lib/firebase/firestoreActions.ts
-import { getProductsBySeller } from '@/lib/firebase/firestoreActions'; // Import getProductsBySeller
+import { getProductsBySeller, Product as FirestoreProduct } from '@/lib/firebase/firestoreActions'; // Import getProductsBySeller and the Product type
 
 // Define a basic Product type (should match the one in edit page)
-interface Product {
-  id: string;
-  name: string;
-  price: number;
-  stock: number;
-  // Add other fields as needed
-}
+// interface Product { // It's better to use the Product type from firestoreActions
+//   id: string;
+//   name: string;
+//   price: number;
+//   stock: number; 
+//   // Add other fields as needed
+// }
 
 /**
  * Seller Product List Page
@@ -23,7 +23,7 @@ interface Product {
 export default function SellerProductsPage() {
   const { user, loading } = useAuth();
   const router = useRouter();
-  const [products, setProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<FirestoreProduct[]>([]); // Use FirestoreProduct
   const [isLoadingProducts, setIsLoadingProducts] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -96,7 +96,7 @@ export default function SellerProductsPage() {
                   Price
                 </th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Stock
+                  Stock Quantity {/* Changed from Stock */}
                 </th>
                  <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
@@ -113,7 +113,7 @@ export default function SellerProductsPage() {
                     ${product.price.toFixed(2)}
                   </td>
                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {product.stock}
+                    {product.stockQuantity} {/* Changed from product.stock */}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <Link href={`/dashboard/seller/products/${product.id}`} className="text-blue-600 hover:text-blue-900 mr-4">

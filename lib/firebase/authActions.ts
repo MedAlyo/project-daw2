@@ -5,7 +5,8 @@ import {
   sendEmailVerification,
   verifyPasswordResetCode,
   confirmPasswordReset,
-  User
+  User,
+  updatePassword // <-- Import updatePassword
 } from 'firebase/auth'; // Direct import from firebase/auth
 import { auth } from '@/lib/firebase/config'; // Import your initialized auth instance
 
@@ -72,6 +73,25 @@ export const resetUserPassword = async (oobCode: string, newPassword: string): P
     console.log('Password has been reset successfully.');
   } catch (error) {
     console.error('Error resetting password:', error);
+    throw error;
+  }
+};
+
+/**
+ * Updates the password for the currently signed-in user.
+ * @param newPassword The new password.
+ * @returns Promise<void>
+ */
+export const updateUserPassword = async (newPassword: string): Promise<void> => {
+  const user = auth.currentUser;
+  if (!user) {
+    throw new Error('No user is currently signed in to update password.');
+  }
+  try {
+    await updatePassword(user, newPassword);
+    console.log('Password updated successfully for user:', user.email);
+  } catch (error) {
+    console.error('Error updating password:', error);
     throw error;
   }
 };
