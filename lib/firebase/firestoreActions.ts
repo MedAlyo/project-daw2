@@ -15,6 +15,7 @@ import {
   orderBy,
 } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage'; // <-- ADDED: Firebase Storage imports
+import { calculateDistance } from '@/lib/utils/location'; // <-- ADDED: Import calculateDistance
 
 const productsCollection = collection(db, 'products');
 const usersCollection = collection(db, 'users');
@@ -357,3 +358,56 @@ export const updateOrderStatus = async (orderId: string, status: Order['status']
 };
 
 // TODO: Add other order-related functions like createOrder, getOrderById if they don't exist
+
+// Add after the existing store functions
+export const createStore = async (storeData: any): Promise<string> => {
+  try {
+    const docRef = await addDoc(storesCollection, storeData);
+    console.log('Store created with ID: ', docRef.id);
+    return docRef.id;
+  } catch (error) {
+    console.error('Error creating store:', error);
+    throw new Error('Failed to create store.');
+  }
+};
+
+// Add to existing firestoreActions.ts
+export const getProductsByProximity = async (
+  userLat: number, 
+  userLng: number, 
+  radiusKm: number = 10
+): Promise<Product[]> => {
+  try {
+    // Get all stores first
+    const storesSnapshot = await getDocs(storesCollection);
+    const nearbyStoreIds: string[] = [];
+    
+    storesSnapshot.docs.forEach(doc => {
+      const store = doc.data();
+      if (store.location && store.location.lat && store.location.lng) {
+        const distance = calculateDistance(
+          userLat, userLng, 
+          store.location.lat, store.location.lng
+        );
+        if (distance <= radiusKm) {
+          nearbyStoreIds.push(doc.id);
+        }
+      }
+    });
+    
+    // Get products from nearby stores
+    if (nearbyStoreIds.length === 0) return [];
+    
+    const q = query(
+      productsCollection,
+      where('storeId', 'in', nearbyStoreIds.slice(0, 10)), // Firestore 'in' limit
+      where('status', '==', 'active')
+    );
+    
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+  } catch (error) {
+    console.error('Error fetching products by proximity:', error);
+    throw new Error('Failed to fetch nearby products.');
+  }
+};
