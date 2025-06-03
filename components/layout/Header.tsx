@@ -4,6 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { signOut } from 'firebase/auth';
+import CartIcon from '@/components/cart/CartIcon';
 import { useAuth } from '@/context/AuthContext';
 import { auth } from '@/lib/firebase/config';
 

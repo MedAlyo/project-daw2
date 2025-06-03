@@ -4,8 +4,10 @@ import React, { useState, useEffect, FormEvent } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { getProductById, updateProduct, Product } from '@/lib/firebase/firestoreActions';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import Link from 'next/link';
-import { Timestamp } from 'firebase/firestore'; // Import Timestamp
+import { Timestamp } from 'firebase/firestore';
+
 
 export default function EditProductPage() {
   const { user, loading: authLoading } = useAuth();
@@ -22,6 +24,8 @@ export default function EditProductPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
 
   useEffect(() => {
     if (authLoading) return;
@@ -97,13 +101,27 @@ export default function EditProductPage() {
 
     setIsLoading(true);
     try {
+      let imageUrl = product.images?.[0] || '';
+      
+      // Upload new image if provided
+      if (imageFile) {
+        setIsUploadingImage(true);
+        const storage = getStorage();
+        const imageRef = ref(storage, `products/${productId}/image-${crypto.randomUUID()}`);
+        await uploadBytes(imageRef, imageFile);
+        imageUrl = await getDownloadURL(imageRef);
+        setIsUploadingImage(false);
+      }
+
       const productDataToUpdate = {
         name: name.trim(),
         description: description.trim(),
         price: numericPrice,
         stockQuantity: numericStock, // Changed from stock
         status,
+        images: imageUrl ? [imageUrl] : product.images || [],
       };
+      
       console.log('Attempting to update product with ID:', productId, 'Data:', productDataToUpdate);
       await updateProduct(productId, productDataToUpdate);
       setSuccessMessage('Product updated successfully!');

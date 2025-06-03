@@ -114,24 +114,28 @@ export const addProduct = async (sellerUid: string, storeId: string, productData
 }
 
 /**
- * Retrieves a single product by its ID from Firestore.
- * @param productId The ID of the product to retrieve.
- * @returns A promise that resolves to the product data or null if not found.
+ * Gets a single product by ID.
+ * @param productId The ID of the product to fetch.
+ * @returns The product data or null if not found.
  */
 export const getProductById = async (productId: string): Promise<Product | null> => {
   try {
-    const productDocRef = doc(productsCollection, productId);
-    const productDocSnap = await getDoc(productDocRef);
-
-    if (productDocSnap.exists()) {
-      return { id: productDocSnap.id, ...productDocSnap.data() } as Product;
+    const productDoc = doc(productsCollection, productId);
+    const productSnapshot = await getDoc(productDoc);
+    
+    if (productSnapshot.exists()) {
+      const data = productSnapshot.data() as ProductData;
+      return {
+        id: productSnapshot.id,
+        ...data,
+      };
     } else {
-      console.log('No such product!');
+      console.log('No product found with ID:', productId);
       return null;
     }
   } catch (error) {
-    console.error('Error fetching product by ID:', error);
-    throw new Error('Failed to fetch product.');
+    console.error('Error fetching product:', error);
+    throw new Error('Failed to fetch product');
   }
 };
 
@@ -222,6 +226,14 @@ export interface Store {
   name: string;
   location: string; // Added location field
   description?: string;
+  bannerUrl?: string;
+  logoUrl?: string;
+  address?: string;
+  city?: string;
+  country?: string;
+  postalCode?: string;
+  categories?: string[];
+  phone?: string;
   // Add other store-related fields
   createdAt: Timestamp;
   updatedAt: Timestamp;
@@ -232,6 +244,14 @@ export interface StoreData {
   name?: string;
   location?: string;
   description?: string;
+  bannerUrl?: string;
+  logoUrl?: string;
+  address?: string;
+  city?: string;
+  country?: string;
+  postalCode?: string;
+  categories?: string[];
+  phone?: string;
   // include other fields that can be updated
 }
 
@@ -276,6 +296,49 @@ export const getStoreBySellerId = async (sellerId: string): Promise<Store | null
 };
 
 /**
+ * Retrieves a store by its ID.
+ * @param storeId The ID of the store to retrieve.
+ * @returns A promise that resolves to the store or null if not found.
+ */
+export const getStoreById = async (storeId: string): Promise<Store | null> => {
+  try {
+    const storeDoc = doc(storesCollection, storeId);
+    const storeSnapshot = await getDoc(storeDoc);
+    
+    if (storeSnapshot.exists()) {
+      return { id: storeSnapshot.id, ...storeSnapshot.data() } as Store;
+    } else {
+      return null;
+    }
+  } catch (error) {
+    console.error('Error fetching store by ID:', error);
+    throw new Error('Failed to fetch store.');
+  }
+};
+
+/**
+ * Retrieves all active products from a specific store.
+ * @param storeId The ID of the store.
+ * @returns A promise that resolves to an array of products from the store.
+ */
+export const getProductsByStoreId = async (storeId: string): Promise<Product[]> => {
+  try {
+    const q = query(
+      productsCollection, 
+      where('storeId', '==', storeId),
+      where('status', '==', 'active'),
+      orderBy('createdAt', 'desc')
+    );
+    const querySnapshot = await getDocs(q);
+    const products = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+    return products;
+  } catch (error) {
+    console.error('Error fetching products by store ID:', error);
+    throw new Error('Failed to fetch store products.');
+  }
+};
+
+/**
  * Updates an existing store in Firestore.
  * @param storeId The ID of the store to update.
  * @param updatedData An object containing the fields to update.
@@ -301,16 +364,15 @@ export const updateStoreDetails = async (storeId: string, updatedData: Partial<S
 export interface Order {
   id: string;
   buyerId: string;
-  buyerName?: string; // Added buyerName (optional for now)
+  buyerName?: string;
   sellerId: string;
   storeId: string;
-  items: Array<{ productId: string; quantity: number; price: number }>; // Array of items in the order
+  items: Array<{ productId: string; productName: string; quantity: number; price: number }>;
   totalAmount: number;
   status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
-  shippingAddress: object; // Or a more specific address interface
+  shippingAddress: ShippingAddress;
   createdAt: Timestamp;
   updatedAt: Timestamp;
-  // Add other order-related fields
 }
 
 // Order Functions
@@ -409,5 +471,171 @@ export const getProductsByProximity = async (
   } catch (error) {
     console.error('Error fetching products by proximity:', error);
     throw new Error('Failed to fetch nearby products.');
+  }
+};
+
+// shipping address interface
+export interface ShippingAddress {
+  fullName: string;
+  addressLine1: string;
+  addressLine2?: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  country: string;
+  phoneNumber?: string;
+}
+
+// order creation data interface
+export interface OrderCreateData {
+  buyerId: string;
+  buyerName: string;
+  sellerId: string;
+  storeId: string;
+  items: Array<{ productId: string; productName: string; quantity: number; price: number }>;
+  totalAmount: number;
+  shippingAddress: ShippingAddress;
+}
+
+/**
+ * Creates a new order in Firestore.
+ * @param orderData The data for the new order.
+ * @returns The ID of the newly created order.
+ */
+export const createOrder = async (orderData: OrderCreateData): Promise<string> => {
+  try {
+    const now = Timestamp.now();
+    const orderToSave = {
+      ...orderData,
+      status: 'pending' as const,
+      createdAt: now,
+      updatedAt: now,
+    };
+    
+    const docRef = await addDoc(ordersCollection, orderToSave);
+    console.log('Order created with ID: ', docRef.id);
+    return docRef.id;
+  } catch (error) {
+    console.error('Error creating order:', error);
+    throw new Error('Failed to create order.');
+  }
+};
+
+/**
+ * Gets a single order by ID.
+ * @param orderId The ID of the order to fetch.
+ * @returns The order data or null if not found.
+ */
+export const getOrderById = async (orderId: string): Promise<Order | null> => {
+  try {
+    const orderDoc = doc(ordersCollection, orderId);
+    const orderSnapshot = await getDoc(orderDoc);
+    
+    if (orderSnapshot.exists()) {
+      return { id: orderSnapshot.id, ...orderSnapshot.data() } as Order;
+    } else {
+      console.log('No order found with ID:', orderId);
+      return null;
+    }
+  } catch (error) {
+    console.error('Error fetching order:', error);
+    throw new Error('Failed to fetch order');
+  }
+};
+
+/**
+ * Retrieves all orders for a specific buyer.
+ * @param buyerId The ID of the buyer.
+ * @returns A promise that resolves to an array of orders.
+ */
+export const getOrdersByBuyer = async (buyerId: string): Promise<Order[]> => {
+  try {
+    const q = query(
+      ordersCollection, 
+      where('buyerId', '==', buyerId), 
+      orderBy('createdAt', 'desc')
+    );
+    const querySnapshot = await getDocs(q);
+    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Order));
+  } catch (error) {
+    console.error('Error fetching orders by buyer:', error);
+    throw new Error('Failed to fetch orders by buyer.');
+  }
+};
+
+/**
+ * Updates product stock after order creation.
+ * @param items Array of order items to update stock for.
+ */
+export const updateProductStock = async (items: Array<{ productId: string; quantity: number }>): Promise<void> => {
+  try {
+    const updatePromises = items.map(async (item) => {
+      const productDoc = doc(productsCollection, item.productId);
+      const productSnapshot = await getDoc(productDoc);
+      
+      if (productSnapshot.exists()) {
+        const currentStock = productSnapshot.data().stockQuantity;
+        const newStock = Math.max(0, currentStock - item.quantity);
+        
+        await updateDoc(productDoc, {
+          stockQuantity: newStock,
+          updatedAt: Timestamp.now(),
+        });
+      }
+    });
+    
+    await Promise.all(updatePromises);
+    console.log('Product stock updated successfully');
+  } catch (error) {
+    console.error('Error updating product stock:', error);
+    throw new Error('Failed to update product stock');
+  }
+};
+
+/**
+ * Retrieves all active products from all stores.
+ * @returns A promise that resolves to an array of all active products.
+ */
+export const getAllProducts = async (): Promise<Product[]> => {
+  try {
+    const q = query(productsCollection, where('status', '==', 'active'), orderBy('createdAt', 'desc'));
+    const querySnapshot = await getDocs(q);
+    const products = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Product));
+    return products;
+  } catch (error) {
+    console.error('Error fetching all products:', error);
+    throw new Error('Failed to fetch all products.');
+  }
+};
+
+/**
+ * Retrieves all stores.
+ * @returns A promise that resolves to an array of all stores.
+ */
+export const getAllStores = async (): Promise<Store[]> => {
+  try {
+    const q = query(storesCollection, orderBy('createdAt', 'desc'));
+    const querySnapshot = await getDocs(q);
+    const stores = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Store));
+    return stores;
+  } catch (error) {
+    console.error('Error fetching all stores:', error);
+    throw new Error('Failed to fetch all stores.');
+  }
+};
+
+/**
+ * Retrieves featured products (first 8 active products).
+ * @returns A promise that resolves to an array of featured products.
+ */
+export const getFeaturedProducts = async (): Promise<Product[]> => {
+  try {
+    const q = query(productsCollection, where('status', '==', 'active'), orderBy('createdAt', 'desc'));
+    const querySnapshot = await getDocs(q);
+    const products = querySnapshot.docs.slice(0, 8).map(doc => ({ id: doc.id, ...doc.data() } as Product));
+    return products;
+  } catch (error) {
+    console.error('Error fetching featured products:', error);
+    throw new Error('Failed to fetch featured products.');
   }
 };

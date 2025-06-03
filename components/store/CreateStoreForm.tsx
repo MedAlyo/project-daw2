@@ -1,12 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { createStore } from '@/lib/firebase/firestoreActions';
+import { geocodeAddress } from '@/lib/utils/location'; // Add this import
 import { Timestamp } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { v4 as uuidv4 } from 'uuid';
+
+// Initialize Firebase Storage
+const storage = getStorage();
 
 interface StoreFormData {
   name: string;
@@ -70,60 +74,74 @@ export default function CreateStoreForm() {
     return getDownloadURL(storageRef);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!user?.uid) return;
+    setError('');
+    setIsSubmitting(true);
+
+    if (!user) {
+      setError('You must be logged in to create a store.');
+      setIsSubmitting(false);
+      return;
+    }
 
     try {
-      setIsSubmitting(true);
-      setError('');
-
-      // Basic validation
-      if (!formData.name || !formData.address || !formData.city || !formData.country) {
-        throw new Error('Please fill in all required fields');
+      setIsUploading(true);
+      
+      // Geocode the address to get real coordinates
+      const fullAddress = `${formData.address}, ${formData.city}, ${formData.country} ${formData.postalCode}`;
+      const coordinates = await geocodeAddress(fullAddress);
+      
+      if (!coordinates) {
+        setError('Unable to find location for the provided address. Please check and try again.');
+        setIsSubmitting(false);
+        setIsUploading(false);
+        return;
       }
 
-      // Upload files if selected
       let logoUrl = '';
       let bannerUrl = '';
 
+      // Upload logo if provided
       if (logoFile) {
-        logoUrl = await uploadFile(logoFile, 'store-logos');
+        const logoRef = ref(storage, `stores/${user.uid}/logo-${crypto.randomUUID()}`);
+        await uploadBytes(logoRef, logoFile);
+        logoUrl = await getDownloadURL(logoRef);
       }
 
+      // Upload banner if provided
       if (bannerFile) {
-        bannerUrl = await uploadFile(bannerFile, 'store-banners');
+        const bannerRef = ref(storage, `stores/${user.uid}/banner-${crypto.randomUUID()}`);
+        await uploadBytes(bannerRef, bannerFile);
+        bannerUrl = await getDownloadURL(bannerRef);
       }
 
-      // Geocode address (simplified - in a real app, use a geocoding service)
-      const location = {
-        lat: 0, // Replace with actual geocoding
-        lng: 0  // Replace with actual geocoding
-      };
-
-      // Create store data
       const storeData = {
-        ...formData,
         ownerId: user.uid,
-        location,
-        categories: formData.categories.split(',').map(cat => cat.trim()).filter(Boolean),
-        isActive: true,
-        logoUrl: logoUrl || undefined,
-        bannerUrl: bannerUrl || undefined,
+        name: formData.name,
+        description: formData.description,
+        address: formData.address,
+        city: formData.city,
+        country: formData.country,
+        postalCode: formData.postalCode,
+        phone: formData.phone,
+        email: formData.email,
+        categories: formData.categories.split(',').map(cat => cat.trim()),
+        location: coordinates, // Use real coordinates
+        logoUrl,
+        bannerUrl,
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
       };
 
-      // Create store in Firestore
-      const storeId = await createStore(storeData);
-      
-      // Redirect to store dashboard
-      router.push(`/dashboard/seller`);
-    } catch (err) {
-      console.error('Error creating store:', err);
-      setError(err instanceof Error ? err.message : 'Failed to create store');
+      await createStore(storeData);
+      router.push('/dashboard/seller');
+    } catch (error) {
+      console.error('Error creating store:', error);
+      setError('Failed to create store. Please try again.');
     } finally {
       setIsSubmitting(false);
+      setIsUploading(false);
     }
   };
 

@@ -1,10 +1,31 @@
-import Link from 'next/link';
-// TODO: Import components for search bar, product cards, shop cards when created
+'use client';
 
-/**
- * Home page component for LocaShop.
- */
+import Link from 'next/link';
+import { useEffect, useState } from 'react';
+import { getFeaturedProducts, Product } from '@/lib/firebase/firestoreActions';
+import ProductCard from '@/components/products/ProductCard';
+
 export default function Home() {
+  const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchFeaturedProducts = async () => {
+      try {
+        const products = await getFeaturedProducts();
+        setFeaturedProducts(products);
+      } catch (err) {
+        console.error('Error fetching featured products:', err);
+        setError('Failed to load featured products');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchFeaturedProducts();
+  }, []);
+
   return (
     <div className="space-y-12 py-8 md:py-16">
       {/* Hero Section */}
@@ -16,7 +37,6 @@ export default function Home() {
           Find everything you need from the comfort of your home or from your favorite neighborhood stores. LocaShop connects you to the best of both worlds.
         </p>
         <div className="flex flex-col sm:flex-row justify-center items-center gap-4">
-          {/* TODO: Implement a more functional search bar component */}
           <input 
             type="text" 
             placeholder="Search products or shops..." 
@@ -42,18 +62,34 @@ export default function Home() {
         <h2 className="text-2xl sm:text-3xl font-bold mb-6 text-gray-900">
           Featured Products
         </h2>
-        {/* TODO: Replace with dynamic product listing component */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-          {/* Placeholder Product Cards - replace with actual ProductCard component */}
-          {[1, 2, 3, 4].map((item) => (
-            <div key={item} className="border border-gray-200 rounded-lg p-4 shadow-sm">
-              <div className="bg-gray-200 h-40 rounded-md mb-3"></div> {/* Placeholder for image */}
-              <h3 className="font-semibold text-gray-800">Product Name {item}</h3>
-              <p className="text-gray-600 text-sm">Shop Name</p>
-              <p className="text-lg font-bold text-gray-900 mt-1">$XX.XX</p>
-            </div>
-          ))}
-        </div>
+        
+        {isLoading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {[1, 2, 3, 4].map((item) => (
+              <div key={item} className="border border-gray-200 rounded-lg p-4 shadow-sm animate-pulse">
+                <div className="bg-gray-200 h-40 rounded-md mb-3"></div>
+                <div className="h-4 bg-gray-200 rounded mb-2"></div>
+                <div className="h-3 bg-gray-200 rounded mb-2"></div>
+                <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+              </div>
+            ))}
+          </div>
+        ) : error ? (
+          <div className="text-center py-8">
+            <p className="text-red-500">{error}</p>
+          </div>
+        ) : featuredProducts.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {featuredProducts.map((product) => (
+              <ProductCard key={product.id} product={product} />
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-8">
+            <p className="text-gray-500">No featured products available at the moment.</p>
+          </div>
+        )}
+        
         <div className="text-center mt-8">
           <Link href="/products" className="bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium py-2 px-6 rounded-md">
             View All Products
@@ -68,7 +104,6 @@ export default function Home() {
         </h2>
         <div className="grid md:grid-cols-3 gap-8 text-center">
           <div>
-            {/* TODO: Replace with actual icons */}
             <div className="text-4xl mb-2">🛍️</div> 
             <h3 className="text-xl font-semibold mb-2 text-gray-800">1. Discover</h3>
             <p className="text-gray-700">
@@ -91,10 +126,6 @@ export default function Home() {
           </div>
         </div>
       </section>
-
-      {/* Featured Shops Section (Optional) */}
-      {/* TODO: Implement if desired, similar to Featured Products */}
-
     </div>
   );
 }
