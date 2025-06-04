@@ -222,9 +222,9 @@ export const getUserProfile = async (uid: string): Promise<UserProfile | null> =
 // Store Interface (Assuming a basic structure)
 export interface Store {
   id: string;
-  ownerId: string; // This is the sellerId
+  ownerId: string;
   name: string;
-  location: string; // Added location field
+  location: string;
   description?: string;
   bannerUrl?: string;
   logoUrl?: string;
@@ -234,12 +234,12 @@ export interface Store {
   postalCode?: string;
   categories?: string[];
   phone?: string;
-  // Add other store-related fields
+  latitude?: number;
+  longitude?: number;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
 
-// Added StoreData interface for updates
 export interface StoreData {
   name?: string;
   location?: string;
@@ -252,7 +252,8 @@ export interface StoreData {
   postalCode?: string;
   categories?: string[];
   phone?: string;
-  // include other fields that can be updated
+  latitude?: number;
+  longitude?: number;
 }
 
 // Store Functions
@@ -446,10 +447,10 @@ export const getProductsByProximity = async (
     
     storesSnapshot.docs.forEach(doc => {
       const store = doc.data();
-      if (store.location && store.location.lat && store.location.lng) {
+      if (store.latitude && store.longitude) {
         const distance = calculateDistance(
           userLat, userLng, 
-          store.location.lat, store.location.lng
+          store.latitude, store.longitude
         );
         if (distance <= radiusKm) {
           nearbyStoreIds.push(doc.id);

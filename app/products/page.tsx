@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { getProductsByProximity, Product } from '@/lib/firebase/firestoreActions';
-import { getUserLocation } from '@/lib/utils/location';
+import { getProductsByProximity, Product, getAllStores, Store } from '@/lib/firebase/firestoreActions';
+import { getUserLocation, calculateDistance } from '@/lib/utils/location';
 import ProductCard from '@/components/products/ProductCard';
 
 interface UserLocation {
@@ -9,12 +9,18 @@ interface UserLocation {
   lng: number;
 }
 
+interface ProductWithDistance extends Product {
+  distance?: number;
+  storeLocation?: { lat: number; lng: number };
+}
+
 export default function ProductsPage() {
-  const [products, setProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<ProductWithDistance[]>([]);
   const [loading, setLoading] = useState(true);
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [radius, setRadius] = useState(10); // Allow users to adjust search radius
+  const [radius, setRadius] = useState(10);
+  const [stores, setStores] = useState<Store[]>([]);
   
   const loadNearbyProducts = async (searchRadius: number = radius) => {
     try {
@@ -24,10 +30,42 @@ export default function ProductsPage() {
       const location = await getUserLocation();
       setUserLocation(location);
       
+      // Get all stores for location data
+      const allStores = await getAllStores();
+      setStores(allStores);
+      
       const nearbyProducts = await getProductsByProximity(
         location.lat, location.lng, searchRadius
       );
-      setProducts(nearbyProducts);
+      
+      // Add distance and store location data to products
+      const productsWithDistance: ProductWithDistance[] = nearbyProducts.map(product => {
+        const store = allStores.find(s => s.id === product.storeId);
+        if (store && store.latitude && store.longitude) {
+          const distance = calculateDistance(
+            location.lat,
+            location.lng,
+            store.latitude,
+            store.longitude
+          );
+          return {
+            ...product,
+            distance,
+            storeLocation: { lat: store.latitude, lng: store.longitude }
+          };
+        }
+        return product;
+      });
+      
+      // Sort by distance (closest first)
+      productsWithDistance.sort((a, b) => {
+        if (a.distance && b.distance) return a.distance - b.distance;
+        if (a.distance) return -1;
+        if (b.distance) return 1;
+        return 0;
+      });
+      
+      setProducts(productsWithDistance);
     } catch (error) {
       console.error('Error loading nearby products:', error);
       setError('Could not load products. Please enable location access and try again.');
@@ -75,8 +113,8 @@ export default function ProductsPage() {
       
       {/* Location info */}
       {userLocation && (
-        <div className="mb-4 text-sm text-gray-600">
-          📍 Searching within {radius}km of your location
+        <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+          <p className="text-green-800 text-sm">📍 Searching within {radius}km of your location</p>
         </div>
       )}
       
@@ -136,7 +174,13 @@ export default function ProductsPage() {
           {/* Products grid */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {products.map(product => (
-              <ProductCard key={product.id} product={product} />
+              <ProductCard 
+                key={product.id} 
+                product={product} 
+                userLocation={userLocation}
+                storeLocation={product.storeLocation}
+                distance={product.distance}
+              />
             ))}
           </div>
         </>

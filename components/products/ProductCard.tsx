@@ -9,9 +9,12 @@ import { useAuth } from '@/context/AuthContext';
 
 interface ProductCardProps {
   product: Product;
+  userLocation?: { lat: number; lng: number } | null;
+  storeLocation?: { lat: number; lng: number } | null;
+  distance?: number;
 }
 
-const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
+const ProductCard: React.FC<ProductCardProps> = ({ product, userLocation, storeLocation, distance }) => {
   const { addItem } = useCart();
   const { user } = useAuth();
   
@@ -19,10 +22,17 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const isOutOfStock = product.stockQuantity <= 0;
   
   const handleAddToCart = (e: React.MouseEvent) => {
-    e.preventDefault(); // prevent navigation to product detail page
+    e.preventDefault();
     if (product && user && user.role === 'buyer') {
       addItem(product);
     }
+  };
+
+  const getGoogleMapsUrl = () => {
+    if (storeLocation) {
+      return `https://www.google.com/maps/dir/?api=1&destination=${storeLocation.lat},${storeLocation.lng}`;
+    }
+    return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(product.name)}`;
   };
   
   return (
@@ -36,6 +46,11 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
             objectFit="cover"
             className="group-hover:opacity-75 transition-opacity duration-200 ease-in-out"
           />
+          {distance && (
+            <div className="absolute top-2 right-2 bg-blue-600 text-white text-xs font-medium px-2 py-1 rounded-full shadow-sm">
+              {distance.toFixed(1)} km
+            </div>
+          )}
         </div>
       </Link>
       
@@ -54,6 +69,22 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
           <p className="text-sm text-red-600 mt-1">Out of Stock</p>
         ) : (
           <p className="text-sm text-green-600 mt-1">{product.stockQuantity} in stock</p>
+        )}
+
+        {/* Distance and directions */}
+        {distance && (
+          <div className="flex items-center justify-between mt-2 text-sm">
+            <span className="text-gray-600">📍 {distance.toFixed(1)} km away</span>
+            <a 
+              href={getGoogleMapsUrl()}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-red-600 hover:text-red-800 font-medium"
+              onClick={(e) => e.stopPropagation()}
+            >
+              Directions
+            </a>
+          </div>
         )}
         
         {/* add to cart button */}
