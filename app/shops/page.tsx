@@ -156,8 +156,14 @@ export default function ShopsPage() {
                   <p className="text-gray-600 text-sm mb-2">{store.description}</p>
                   
                   <div className="text-sm text-gray-500 mb-2">
-                    <p>{store.address}</p>
-                    <p>{store.city}, {store.country} {store.postalCode}</p>
+                    {store.location ? (
+                      <p>{store.location}</p>
+                    ) : (
+                      <>
+                        <p>{store.address}</p>
+                        <p>{store.city}, {store.country} {store.postalCode}</p>
+                      </>
+                    )}
                   </div>
                   
                   {store.categories && store.categories.length > 0 && (

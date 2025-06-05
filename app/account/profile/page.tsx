@@ -1,15 +1,23 @@
-'use client'; // If you need client-side hooks like useAuth
-
+'use client';
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '@/context/AuthContext'; // Assuming you want to display user info
+import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
-import { getStoreBySellerId, updateStoreDetails } from '@/lib/firebase/firestoreActions'; // TODO: Implement these functions
-import { updateUserPassword } from '@/lib/firebase/authActions'; // TODO: Implement this function
+import { getStoreBySellerId, updateStoreDetails } from '@/lib/firebase/firestoreActions';
+import { updateUserPassword } from '@/lib/firebase/authActions';
+import dynamic from 'next/dynamic';
+
+// Dynamically import the map component to avoid SSR issues
+const LocationPicker = dynamic(() => import('@/components/map/LocationPicker'), {
+  ssr: false,
+  loading: () => <div className="h-64 bg-gray-200 rounded-md flex items-center justify-center">Loading map...</div>
+});
 
 // Define a type for the store data for better type safety
 interface StoreData {
   name: string;
   location: string;
+  latitude?: number;
+  longitude?: number;
   // Add other store fields if necessary
 }
 
@@ -20,25 +28,27 @@ export default function ProfilePage() {
   const [newPassword, setNewPassword] = useState('');
   const [shopName, setShopName] = useState('');
   const [shopLocation, setShopLocation] = useState('');
-  const [storeId, setStoreId] = useState<string | null>(null); // To store the ID of the seller's store
+  const [shopLatitude, setShopLatitude] = useState<number>(40.7128); // Default to NYC
+  const [shopLongitude, setShopLongitude] = useState<number>(-74.0060);
+  const [storeId, setStoreId] = useState<string | null>(null);
   const [feedbackMessage, setFeedbackMessage] = useState('');
+  const [useMapForLocation, setUseMapForLocation] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) {
-      router.push('/account/login'); // Redirect if not logged in
+      router.push('/account/login');
     }
     if (user && user.uid) {
-      // Fetch store data when user is available
       const fetchStoreData = async () => {
         try {
-          // TODO: Ensure getStoreBySellerId is implemented and handles cases where a store might not exist yet
           const storeData = await getStoreBySellerId(user.uid);
           if (storeData) {
             setShopName(storeData.name || '');
             setShopLocation(storeData.location || '');
-            setStoreId(storeData.id); // Assuming storeData has an id field
+            setShopLatitude(storeData.latitude || 40.7128);
+            setShopLongitude(storeData.longitude || -74.0060);
+            setStoreId(storeData.id);
           } else {
-            // Handle case where no store is found for the seller, perhaps prompt to create one
             setFeedbackMessage('No shop found. You can create one from the dashboard.');
           }
         } catch (error) {
@@ -57,14 +67,19 @@ export default function ProfilePage() {
       return;
     }
     try {
-      // TODO: Implement updateUserPassword in authActions.ts
       await updateUserPassword(newPassword);
       setFeedbackMessage('Password updated successfully!');
-      setNewPassword(''); // Clear the input field
+      setNewPassword('');
     } catch (error) {
       console.error('Error updating password:', error);
       setFeedbackMessage('Failed to update password. Please try again.');
     }
+  };
+
+  const handleLocationChange = (lat: number, lng: number, address: string) => {
+    setShopLatitude(lat);
+    setShopLongitude(lng);
+    setShopLocation(address);
   };
 
   const handleShopDetailsUpdate = async (e: React.FormEvent) => {
@@ -78,8 +93,14 @@ export default function ProfilePage() {
       return;
     }
     try {
-      // TODO: Ensure updateStoreDetails is implemented in firestoreActions.ts
-      await updateStoreDetails(storeId, { name: shopName, location: shopLocation });
+      const updateData = { 
+        name: shopName, 
+        location: shopLocation,
+        latitude: shopLatitude,
+        longitude: shopLongitude
+      };
+      console.log('Updating store with data:', updateData); // Debug log
+      await updateStoreDetails(storeId, updateData);
       setFeedbackMessage('Shop details updated successfully!');
     } catch (error) {
       console.error('Error updating shop details:', error);
@@ -92,7 +113,7 @@ export default function ProfilePage() {
   }
 
   if (!user) {
-    return null; // Or a message prompting login, handled by redirect
+    return null;
   }
 
   return (
@@ -142,17 +163,48 @@ export default function ProfilePage() {
                 required
               />
             </div>
+            
             <div className="mb-4">
-              <label htmlFor="shopLocation" className="block text-sm font-medium text-gray-700">Shop Location</label>
-              <input
-                type="text"
-                id="shopLocation"
-                value={shopLocation}
-                onChange={(e) => setShopLocation(e.target.value)}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                required
-              />
+              <div className="flex items-center justify-between mb-2">
+                <label className="block text-sm font-medium text-gray-700">Shop Location</label>
+                <button
+                  type="button"
+                  onClick={() => setUseMapForLocation(!useMapForLocation)}
+                  className="text-sm text-blue-600 hover:text-blue-800"
+                >
+                  {useMapForLocation ? 'Use text input' : 'Use interactive map'}
+                </button>
+              </div>
+              
+              {useMapForLocation ? (
+                <div className="space-y-2">
+                  <LocationPicker
+                    latitude={shopLatitude}
+                    longitude={shopLongitude}
+                    onLocationChange={handleLocationChange}
+                  />
+                  <p className="text-sm text-gray-600">Click on the map to set your shop location</p>
+                  <input
+                    type="text"
+                    value={shopLocation}
+                    onChange={(e) => setShopLocation(e.target.value)}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                    placeholder="Address will be auto-filled when you click on the map"
+                    required
+                  />
+                </div>
+              ) : (
+                <input
+                  type="text"
+                  id="shopLocation"
+                  value={shopLocation}
+                  onChange={(e) => setShopLocation(e.target.value)}
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                  required
+                />
+              )}
             </div>
+            
             <button type="submit" className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">
               Update Shop Details
             </button>
@@ -162,8 +214,6 @@ export default function ProfilePage() {
       {user.role === 'seller' && !storeId && !loading && (
          <p className="text-lg">You do not have a shop yet. Please create one from your dashboard.</p>
       )}
-
-      {/* TODO: Add more profile information and edit functionality if needed */}
     </div>
   );
 }

@@ -10,6 +10,9 @@ export default function StoreDetailPage() {
   const params = useParams();
   const storeId = params.id as string;
   
+  // Add this debug log
+  console.log('Store ID from params:', storeId);
+  
   const [store, setStore] = useState<Store | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -18,10 +21,12 @@ export default function StoreDetailPage() {
   useEffect(() => {
     const fetchStoreData = async () => {
       try {
+        console.log('Fetching store data for ID:', storeId); // Add this
         setIsLoading(true);
         
         // Fetch store details
         const storeData = await getStoreById(storeId);
+        console.log('Store data received:', storeData); // Add this
         if (!storeData) {
           setError('Store not found');
           return;
@@ -30,6 +35,7 @@ export default function StoreDetailPage() {
         
         // Fetch store products
         const storeProducts = await getProductsByStoreId(storeId);
+        console.log('Products received:', storeProducts); // Add this
         setProducts(storeProducts);
         
       } catch (err) {
@@ -42,6 +48,8 @@ export default function StoreDetailPage() {
 
     if (storeId) {
       fetchStoreData();
+    } else {
+      console.log('No store ID provided'); // Add this
     }
   }, [storeId]);
 
@@ -125,11 +133,34 @@ export default function StoreDetailPage() {
               
               {/* Contact Info */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
-                {(store.address || store.city || store.country) && (
+                {(store.location || store.address || store.city || store.country) && (
                   <div>
                     <h3 className="font-semibold text-gray-800 mb-1">Address</h3>
-                    <p>{store.address}</p>
-                    <p>{store.city}, {store.country} {store.postalCode}</p>
+                    {/* Debug info - remove after testing */}
+                    {process.env.NODE_ENV === 'development' && (
+                      <div className="text-xs text-gray-400 mb-2">
+                        Debug: location="{store.location}", lat={store.latitude}, lng={store.longitude}
+                      </div>
+                    )}
+                    {store.location ? (
+                      <p>{store.location}</p>
+                    ) : (
+                      <>
+                        <p>{store.address}</p>
+                        <p>{store.city}, {store.country} {store.postalCode}</p>
+                      </>
+                    )}
+                    {/* Add directions button */}
+                    {(store.latitude && store.longitude) && (
+                      <a 
+                        href={`https://www.google.com/maps/dir/?api=1&destination=${store.latitude},${store.longitude}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-block mt-2 text-blue-600 hover:text-blue-800 font-medium"
+                      >
+                        📍 Get Directions
+                      </a>
+                    )}
                   </div>
                 )}
                 

@@ -241,19 +241,13 @@ export interface Store {
 }
 
 export interface StoreData {
-  name?: string;
-  location?: string;
-  description?: string;
-  bannerUrl?: string;
-  logoUrl?: string;
-  address?: string;
-  city?: string;
-  country?: string;
-  postalCode?: string;
-  categories?: string[];
-  phone?: string;
+  name: string;
+  location: string;
   latitude?: number;
   longitude?: number;
+  ownerId: string;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 // Store Functions
@@ -345,17 +339,17 @@ export const getProductsByStoreId = async (storeId: string): Promise<Product[]> 
  * @param updatedData An object containing the fields to update.
  * @returns A promise that resolves when the store is updated.
  */
-export const updateStoreDetails = async (storeId: string, updatedData: Partial<StoreData>): Promise<void> => {
+export const updateStoreDetails = async (storeId: string, updates: Partial<StoreData>) => {
   try {
-    const storeDocRef = doc(storesCollection, storeId);
-    await updateDoc(storeDocRef, {
-      ...updatedData,
-      updatedAt: Timestamp.now(), // Always update the updatedAt timestamp
+    const storeRef = doc(storesCollection, storeId);
+    await updateDoc(storeRef, {
+      ...updates,
+      updatedAt: new Date()
     });
-    console.log(`Store with ID: ${storeId} updated successfully.`);
+    console.log('Store details updated successfully');
   } catch (error) {
-    console.error('Error updating store:', error);
-    throw new Error('Failed to update store.');
+    console.error('Error updating store details:', error);
+    throw error;
   }
 };
 
