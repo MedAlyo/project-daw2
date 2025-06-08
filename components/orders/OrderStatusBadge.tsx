@@ -6,10 +6,12 @@ const statusColors = {
   shipped: 'bg-blue-100 text-blue-800',
   delivered: 'bg-green-100 text-green-800',
   cancelled: 'bg-red-100 text-red-800',
+  completed: 'bg-purple-100 text-purple-800',
+  refunded: 'bg-gray-100 text-gray-800',
 };
 
 interface OrderStatusBadgeProps {
-  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
+  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'completed' | 'refunded';
 }
 
 export const OrderStatusBadge: React.FC<OrderStatusBadgeProps> = ({ status }) => {

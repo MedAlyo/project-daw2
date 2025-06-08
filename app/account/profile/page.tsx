@@ -11,13 +11,6 @@ const LocationPicker = dynamic(() => import('@/components/map/LocationPicker'), 
   loading: () => <div className="h-64 bg-gray-200 rounded-md flex items-center justify-center"><p className="text-gray-500">Loading map...</p></div>
 });
 
-interface StoreData {
-  name: string;
-  location: string;
-  latitude?: number;
-  longitude?: number;
-}
-
 export default function ProfilePage() {
   const { user, loading } = useAuth();
   const router = useRouter();
@@ -41,7 +34,7 @@ export default function ProfilePage() {
           const storeData = await getStoreBySellerId(user.uid);
           if (storeData) {
             setShopName(storeData.name || '');
-            setShopLocation(storeData.location || '');
+            setShopLocation(storeData.address || ''); // Changed from storeData.location
             setShopLatitude(storeData.latitude || 40.7128);
             setShopLongitude(storeData.longitude || -74.0060);
             setStoreId(storeData.id);

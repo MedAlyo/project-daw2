@@ -65,9 +65,8 @@ export default function ShopsPage() {
   const getGoogleMapsUrl = (store: Store) => {
     if (store.latitude && store.longitude) {
       return `https://www.google.com/maps/dir/?api=1&destination=${store.latitude},${store.longitude}`;
-    } else if (store.address && store.city && store.country) {
-      const address = `${store.address}, ${store.city}, ${store.country}`;
-      return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(address)}`;
+    } else if (store.address) { // Use store.address directly
+      return `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(store.address)}`;
     }
     return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(store.name)}`;
   };
@@ -119,18 +118,18 @@ export default function ShopsPage() {
                 key={store.id} 
                 className="bg-white border border-gray-200 rounded-xl p-5 shadow-lg hover:shadow-indigo-500/30 transition-all duration-300 ease-in-out transform hover:-translate-y-1"
               >
-                {store.bannerUrl && (
+                {store.bannerImageUrl && (
                   <img 
-                    src={store.bannerUrl} 
+                    src={store.bannerImageUrl} 
                     alt={`${store.name} banner`}
                     className="w-full h-36 object-cover rounded-lg mb-4 shadow-sm"
                   />
                 )}
                 
                 <div className="flex items-start gap-4">
-                  {store.logoUrl && (
+                  {store.profilePictureUrl && (
                     <img 
-                      src={store.logoUrl} 
+                      src={store.profilePictureUrl} 
                       alt={`${store.name} logo`}
                       className="w-16 h-16 object-cover rounded-full border-2 border-gray-200 shadow-sm"
                     />
@@ -151,30 +150,22 @@ export default function ShopsPage() {
                     <p className="text-gray-600 text-sm mb-3 leading-relaxed line-clamp-2">{store.description}</p>
                     
                     <div className="text-xs text-gray-500 mb-3">
-                      {store.location ? (
-                        <p>{store.location}</p>
-                      ) : (
-                        <>
-                          {store.address && <p>{store.address}</p>}
-                          {(store.city || store.country || store.postalCode) && 
-                            <p>{[store.city, store.country, store.postalCode].filter(Boolean).join(', ')}</p>}
-                        </>
-                      )}
+                      {store.address && <p>{store.address}</p>}
                     </div>
                     
-                    {store.categories && store.categories.length > 0 && (
+                    {store.tags && store.tags.length > 0 && (
                       <div className="flex flex-wrap gap-1.5 mb-4">
-                        {store.categories.slice(0, 3).map((category, index) => (
+                        {store.tags.slice(0, 3).map((tag: string, index: number) => (
                           <span 
                             key={index}
                             className="px-2.5 py-1 bg-gray-100 text-gray-700 text-xs rounded-full shadow-sm"
                           >
-                            {category}
+                            {tag}
                           </span>
                         ))}
-                        {store.categories.length > 3 && (
+                        {store.tags.length > 3 && (
                           <span className="px-2.5 py-1 bg-gray-200 text-gray-600 text-xs rounded-full shadow-sm">
-                            +{store.categories.length - 3} more
+                            +{store.tags.length - 3} more
                           </span>
                         )}
                       </div>
@@ -187,9 +178,9 @@ export default function ShopsPage() {
                       >
                         View Store
                       </Link>
-                      {store.phone && (
+                      {store.contactPhone && (
                         <a 
-                          href={`tel:${store.phone}`}
+                          href={`tel:${store.contactPhone}`}
                           className="flex items-center justify-center px-4 py-2 rounded-lg text-sm font-medium bg-gray-200 hover:bg-gray-300 text-gray-700 shadow-md hover:shadow-lg transition-all duration-300 ease-in-out transform hover:scale-105 flex-grow sm:flex-grow-0"
                         >
                           Call

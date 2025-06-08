@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react'; // Import Suspense
 import { useSearchParams } from 'next/navigation';
 import { getOrderById, Order } from '@/lib/firebase/firestoreActions';
 import Link from 'next/link';
 
-export default function OrderConfirmationPage() {
+// New component to hold the main content
+function ConfirmationContent() {
   const searchParams = useSearchParams();
   const orderIds = searchParams.get('orders')?.split(',') || [];
   
@@ -33,8 +34,9 @@ export default function OrderConfirmationPage() {
       fetchOrders();
     } else {
       setLoading(false);
+      setError('No order ID found in URL.'); // Provide a more specific error if no IDs
     }
-  }, [orderIds]);
+  }, [orderIds]); // orderIds is the correct dependency
   
   if (loading) {
     return (
@@ -50,8 +52,8 @@ export default function OrderConfirmationPage() {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="text-center py-12">
-          <h1 className="text-2xl font-bold text-gray-800 mb-4">Order Not Found</h1>
-          <p className="text-gray-600 mb-4">{error || 'No orders found.'}</p>
+          <h1 className="text-2xl font-bold text-gray-800 mb-4">Order Information</h1>
+          <p className="text-gray-600 mb-4">{error || 'Could not load your order details at this time.'}</p>
           <Link href="/products" className="text-blue-600 hover:text-blue-800 underline">
             Continue Shopping
           </Link>
@@ -65,7 +67,6 @@ export default function OrderConfirmationPage() {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="max-w-2xl mx-auto">
-        {/* success message */}
         <div className="text-center mb-8">
           <div className="text-6xl mb-4">✅</div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Order Confirmed!</h1>
@@ -74,9 +75,8 @@ export default function OrderConfirmationPage() {
           </p>
         </div>
         
-        {/* order details */}
         <div className="space-y-6">
-          {orders.map((order, index) => (
+          {orders.map((order) => (
             <div key={order.id} className="bg-white p-6 rounded-lg shadow border">
               <div className="flex justify-between items-start mb-4">
                 <div>
@@ -112,7 +112,6 @@ export default function OrderConfirmationPage() {
           ))}
         </div>
         
-        {/* total summary */}
         {orders.length > 1 && (
           <div className="bg-blue-50 p-4 rounded-lg mt-6">
             <div className="flex justify-between items-center font-bold text-lg">
@@ -122,11 +121,10 @@ export default function OrderConfirmationPage() {
           </div>
         )}
         
-        {/* shipping address */}
         <div className="bg-white p-6 rounded-lg shadow border mt-6">
           <h3 className="text-lg font-semibold mb-3">Shipping Address</h3>
           <div className="text-gray-700">
-            <p>{orders[0].shippingAddress.fullName}</p>
+            <p>{orders[0].shippingAddress.name}</p>
             <p>{orders[0].shippingAddress.addressLine1}</p>
             {orders[0].shippingAddress.addressLine2 && (
               <p>{orders[0].shippingAddress.addressLine2}</p>
@@ -141,7 +139,6 @@ export default function OrderConfirmationPage() {
           </div>
         </div>
         
-        {/* action buttons */}
         <div className="flex flex-col sm:flex-row gap-4 mt-8">
           <Link href="/dashboard/buyer" className="flex-1">
             <button className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg font-medium hover:bg-blue-700 transition-colors">
@@ -156,5 +153,14 @@ export default function OrderConfirmationPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// Default export wraps ConfirmationContent with Suspense
+export default function OrderConfirmationPage() {
+  return (
+    <Suspense fallback={<div className="container mx-auto px-4 py-8 flex justify-center items-center min-h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div></div>}>
+      <ConfirmationContent />
+    </Suspense>
   );
 }

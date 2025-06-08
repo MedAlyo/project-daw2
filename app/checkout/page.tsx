@@ -32,12 +32,12 @@ export default function CheckoutPage() {
   const [processingStep, setProcessingStep] = useState<string>('');
   const [shippingCost, setShippingCost] = useState(5.99); 
   const [estimatedDelivery, setEstimatedDelivery] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<'creditCard'>('creditCard'); // Remains 'creditCard'
+  const [paymentMethod, setPaymentMethod] = useState<'creditCard'>('creditCard');
   const [cardDetails, setCardDetails] = useState({
     cardNumber: '',
     expiryDate: '',
     cvv: '',
-    cardholderName: '' // Ensure casing is correct if it was an issue
+    cardholderName: ''
   });
   const [savedAddresses, setSavedAddresses] = useState<ShippingAddress[]>([]);
   const [saveAddress, setSaveAddress] = useState(false);
@@ -155,7 +155,6 @@ export default function CheckoutPage() {
         break;
       case 'postalCode':
         if (!value.trim()) return 'Postal code is required';
-        // Basic postal code validation, can be improved for specific countries
         if (!/^[a-zA-Z0-9\s-]{3,}$/.test(value)) return 'Invalid postal code format';
         break;
       case 'country':
@@ -221,7 +220,7 @@ export default function CheckoutPage() {
       return;
     }
 
-    if (paymentMethod === 'creditCard') { // Changed 'card' to 'creditCard'
+    if (paymentMethod === 'creditCard') {
       if (!cardDetails.cardholderName.trim() || !cardDetails.cardNumber.trim() || !cardDetails.expiryDate.trim() || !cardDetails.cvv.trim()) {
         setError('Please fill in all required card details.');
         document.getElementById('payment-form-start')?.scrollIntoView({ behavior: 'smooth' });
@@ -272,16 +271,12 @@ export default function CheckoutPage() {
           items: storeOrder.items,
           totalAmount: storeOrder.totalAmount,
           shippingAddress: useExistingAddress || shippingAddress,
-          status: 'Pending', // This line was missing
+          status: 'pending',
           paymentMethod: paymentMethod,
           shippingCost: shippingCost / Object.keys(ordersByStore).length, 
           taxAmount: (storeOrder.totalAmount * 0.08) / Object.keys(ordersByStore).length, 
         };
         const orderId = await createOrder(orderData);
-        // await updateProductStock(storeOrder.items.map((item: any) => ({
-        //   productId: item.productId,
-        //   quantity: item.quantity,
-        // })));
         return orderId;
       });
 

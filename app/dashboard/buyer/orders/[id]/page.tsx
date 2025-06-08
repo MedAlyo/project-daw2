@@ -185,7 +185,7 @@ export default function OrderDetailPage() {
             <div className="bg-white p-6 rounded-lg shadow border">
               <h3 className="text-lg font-semibold mb-3">Shipping Address</h3>
               <div className="text-gray-700 space-y-1">
-                <p>{order.shippingAddress.fullName}</p>
+                <p>{order.shippingAddress.name}</p>
                 <p>{order.shippingAddress.addressLine1}</p>
                 {order.shippingAddress.addressLine2 && (
                   <p>{order.shippingAddress.addressLine2}</p>

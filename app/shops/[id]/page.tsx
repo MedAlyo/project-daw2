@@ -9,8 +9,8 @@ import Link from 'next/link';
 export default function StoreDetailPage() {
   const params = useParams();
   const storeId = params.id as string;
-  
-  
+
+
   const [store, setStore] = useState<Store | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -21,7 +21,7 @@ export default function StoreDetailPage() {
       try {
         console.log('Fetching store data for ID:', storeId); // Add this
         setIsLoading(true);
-        
+
         // Fetch store details
         const storeData = await getStoreById(storeId);
         console.log('Store data received:', storeData); // Add this
@@ -30,12 +30,12 @@ export default function StoreDetailPage() {
           return;
         }
         setStore(storeData);
-        
+
         // Fetch store products
         const storeProducts = await getProductsByStoreId(storeId);
         console.log('Products received:', storeProducts); // Add this
         setProducts(storeProducts);
-        
+
       } catch (err) {
         console.error('Error fetching store data:', err);
         setError('Failed to load store information');
@@ -71,7 +71,7 @@ export default function StoreDetailPage() {
         </svg>
         <h1 className="text-3xl font-bold text-gray-800 mb-3">Store Not Found</h1>
         <p className="text-gray-600 mb-8 max-w-md">{error || 'We couldn\'t find the store you\'re looking for. It might have been moved or deleted.'}</p>
-        <Link 
+        <Link
           href="/shops"
           className="inline-flex items-center justify-center px-6 py-3 rounded-lg text-base font-medium bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white shadow-md hover:shadow-lg hover:shadow-indigo-500/40 transition-all duration-300 ease-in-out transform hover:scale-105"
         >
@@ -85,61 +85,66 @@ export default function StoreDetailPage() {
     <div className="min-h-screen bg-gray-50 text-gray-800">
       <div className="bg-white shadow-lg pb-8">
         <div className="max-w-7xl mx-auto">
-          {store.bannerUrl && (
+          {store.bannerImageUrl && (
             <div className="w-full h-56 sm:h-72 md:h-80 lg:h-96 shadow-inner overflow-hidden bg-gray-200">
-              <img 
-                src={store.bannerUrl} 
+              <img
+                src={store.bannerImageUrl}
                 alt={`${store.name} banner`}
                 className="w-full h-full object-cover"
               />
             </div>
           )}
           <div className="px-4 sm:px-6 lg:px-8">
-            <div className={`flex flex-col sm:flex-row items-start gap-6 ${store.bannerUrl ? '-mt-16 sm:-mt-20' : 'pt-8' }`}>
-              {store.logoUrl && (
+            <div className={`flex flex-col sm:flex-row items-start gap-6 ${store.bannerImageUrl ? '-mt-16 sm:-mt-20' : 'pt-8'}`}>
+              {store.profilePictureUrl && (
                 <div className="flex-shrink-0 z-10">
-                  <img 
-                    src={store.logoUrl} 
+                  <img
+                    src={store.profilePictureUrl}
                     alt={`${store.name} logo`}
                     className="w-32 h-32 sm:w-40 sm:h-40 object-cover rounded-full border-4 border-white bg-white shadow-xl"
                   />
                 </div>
               )}
-              
-              <div className={`flex-1 ${store.logoUrl ? 'pt-4 sm:pt-6' : ''}`}>
+
+              <div className={`flex-1 ${store.profilePictureUrl ? 'pt-4 sm:pt-6' : ''}`}>
                 <h1 className="text-3xl sm:text-4xl font-bold text-gray-800 mb-2 break-words">{store.name}</h1>
                 {store.description && (
                   <p className="text-gray-600 text-base sm:text-lg mb-4 leading-relaxed">{store.description}</p>
                 )}
-                
-                {store.categories && store.categories.length > 0 && (
+
+                {store.tags && store.tags.length > 0 && (
                   <div className="flex flex-wrap gap-2 mb-4">
-                    {store.categories.map((category, index) => (
-                      <span 
+                    {store.tags.map((tag: string, index: number) => (
+                      <span
                         key={index}
                         className="px-3 py-1.5 bg-indigo-100 text-indigo-700 text-xs sm:text-sm font-medium rounded-full shadow-sm"
                       >
-                        {category}
+                        {tag}
                       </span>
                     ))}
                   </div>
                 )}
-                
+
+                {store.tags && store.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {store.tags.map((tag: string, index: number) => (
+                      <span
+                        key={index}
+                        className="px-3 py-1.5 bg-indigo-100 text-indigo-700 text-xs sm:text-sm font-medium rounded-full shadow-sm"
+                      >
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 text-sm text-gray-700 mt-4 pt-4 border-t border-gray-200">
-                  {(store.location || store.address || store.city || store.country) && (
+                  {store.address && (
                     <div>
                       <h3 className="font-semibold text-gray-800 mb-1 text-base">Location</h3>
-                      {store.location ? (
-                        <p>{store.location}</p>
-                      ) : (
-                        <>
-                          {store.address && <p>{store.address}</p>}
-                          {(store.city || store.country || store.postalCode) && 
-                            <p>{[store.city, store.country, store.postalCode].filter(Boolean).join(', ')}</p>}
-                        </>
-                      )}
+                      <p>{store.address}</p>
                       {(store.latitude && store.longitude) && (
-                        <a 
+                        <a
                           href={`https://www.google.com/maps/dir/?api=1&destination=${store.latitude},${store.longitude}`}
                           target="_blank"
                           rel="noopener noreferrer"
@@ -153,18 +158,18 @@ export default function StoreDetailPage() {
                       )}
                     </div>
                   )}
-                  
-                  {store.phone && (
+
+                  {store.contactPhone && (
                     <div>
                       <h3 className="font-semibold text-gray-800 mb-1 text-base">Contact</h3>
-                      <a 
-                        href={`tel:${store.phone}`}
+                      <a
+                        href={`tel:${store.contactPhone}`}
                         className="text-indigo-600 hover:text-indigo-800 transition-colors inline-flex items-center group"
                       >
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5 group-hover:text-indigo-700" viewBox="0 0 20 20" fill="currentColor">
                           <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
                         </svg>
-                        {store.phone}
+                        {store.contactPhone}
                       </a>
                     </div>
                   )}
@@ -174,23 +179,23 @@ export default function StoreDetailPage() {
           </div>
         </div>
       </div>
-      
+
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
         <div className="flex items-center justify-between mb-8 pb-4 border-b border-gray-200">
           <h2 className="text-2xl sm:text-3xl font-bold text-gray-800">
             Products <span className="text-gray-500 font-normal">({products.length})</span>
           </h2>
-          <Link 
+          <Link
             href="/shops"
             className="inline-flex items-center text-sm font-medium text-indigo-600 hover:text-indigo-800 transition-colors group"
           >
             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1.5 transform transition-transform duration-200 ease-in-out group-hover:-translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
             </svg>
             Back to All Shops
           </Link>
         </div>
-        
+
         {products.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-8">
             {products.map((product) => (
