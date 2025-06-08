@@ -6,19 +6,16 @@ import { getStoreBySellerId, updateStoreDetails } from '@/lib/firebase/firestore
 import { updateUserPassword } from '@/lib/firebase/authActions';
 import dynamic from 'next/dynamic';
 
-// Dynamically import the map component to avoid SSR issues
 const LocationPicker = dynamic(() => import('@/components/map/LocationPicker'), {
   ssr: false,
-  loading: () => <div className="h-64 bg-gray-200 rounded-md flex items-center justify-center">Loading map...</div>
+  loading: () => <div className="h-64 bg-gray-200 rounded-md flex items-center justify-center"><p className="text-gray-500">Loading map...</p></div>
 });
 
-// Define a type for the store data for better type safety
 interface StoreData {
   name: string;
   location: string;
   latitude?: number;
   longitude?: number;
-  // Add other store fields if necessary
 }
 
 export default function ProfilePage() {
@@ -49,11 +46,15 @@ export default function ProfilePage() {
             setShopLongitude(storeData.longitude || -74.0060);
             setStoreId(storeData.id);
           } else {
-            setFeedbackMessage('No shop found. You can create one from the dashboard.');
+            if (user.role !== 'buyer') {
+              setFeedbackMessage('No shop found. You can create one from the dashboard.');
+            }
           }
         } catch (error) {
           console.error('Error fetching store data:', error);
-          setFeedbackMessage('Failed to load shop details.');
+          if (user.role !== 'buyer') {
+            setFeedbackMessage('Failed to load shop details.');
+          }
         }
       };
       fetchStoreData();
@@ -99,7 +100,7 @@ export default function ProfilePage() {
         latitude: shopLatitude,
         longitude: shopLongitude
       };
-      console.log('Updating store with data:', updateData); // Debug log
+      console.log('Updating store with data:', updateData);
       await updateStoreDetails(storeId, updateData);
       setFeedbackMessage('Shop details updated successfully!');
     } catch (error) {
@@ -109,7 +110,11 @@ export default function ProfilePage() {
   };
 
   if (loading) {
-    return <p>Loading profile...</p>;
+    return (
+      <div className="flex justify-center items-center min-h-screen bg-gray-100">
+        <p className="text-lg text-gray-700">Loading profile...</p>
+      </div>
+    );
   }
 
   if (!user) {
@@ -117,103 +122,142 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-6">My Profile</h1>
-      {feedbackMessage && <p className={`mb-4 ${feedbackMessage.includes('success') ? 'text-green-500' : 'text-red-500'}`}>{feedbackMessage}</p>}
-
-      <div className="bg-white shadow overflow-hidden sm:rounded-lg p-6 mb-8">
-        <h2 className="text-xl font-semibold mb-4">Account Information</h2>
-        <p className="text-lg"><strong>Email:</strong> {user.email}</p>
-        <p className="text-lg"><strong>Display Name:</strong> {user.displayName || 'Not set'}</p>
-        {/* UID and Role are removed as per requirement */}
-      </div>
-
-      <div className="bg-white shadow overflow-hidden sm:rounded-lg p-6 mb-8">
-        <h2 className="text-xl font-semibold mb-4">Change Password</h2>
-        <form onSubmit={handlePasswordChange}>
-          <div className="mb-4">
-            <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700">New Password</label>
-            <input
-              type="password"
-              id="newPassword"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-              required
-            />
+    <div className="min-h-screen bg-gray-100 py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-3xl mx-auto">
+        <h1 className="text-4xl font-bold text-gray-800 mb-8 text-center">My Profile</h1>
+        {feedbackMessage && (
+          <div
+            className={`mb-6 p-4 rounded-md text-sm ${ 
+              feedbackMessage.includes('success') 
+                ? 'bg-green-100 border border-green-400 text-green-700' 
+                : 'bg-red-100 border border-red-400 text-red-700'
+            }`}
+            role="alert"
+          >
+            {feedbackMessage}
           </div>
-          <button type="submit" className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700">
-            Update Password
-          </button>
-        </form>
-      </div>
+        )}
 
-      {user.role === 'seller' && storeId && (
-        <div className="bg-white shadow overflow-hidden sm:rounded-lg p-6">
-          <h2 className="text-xl font-semibold mb-4">Manage Shop</h2>
-          <form onSubmit={handleShopDetailsUpdate}>
-            <div className="mb-4">
-              <label htmlFor="shopName" className="block text-sm font-medium text-gray-700">Shop Name</label>
+        <div className="bg-white shadow-xl rounded-lg p-6 md:p-8 mb-8">
+          <h2 className="text-2xl font-semibold text-gray-700 mb-6 border-b pb-3">Account Information</h2>
+          <div className="space-y-3">
+            <p className="text-md text-gray-600">
+              <strong className="font-medium text-gray-800">Email:</strong> {user.email}
+            </p>
+            <p className="text-md text-gray-600">
+              <strong className="font-medium text-gray-800">Display Name:</strong> {user.displayName || 'Not set'}
+            </p>
+             <p className="text-md text-gray-600">
+              <strong className="font-medium text-gray-800">Role:</strong> <span className="capitalize">{user.role || 'Not set'}</span>
+            </p>
+          </div>
+        </div>
+
+        <div className="bg-white shadow-xl rounded-lg p-6 md:p-8 mb-8">
+          <h2 className="text-2xl font-semibold text-gray-700 mb-6 border-b pb-3">Change Password</h2>
+          <form onSubmit={handlePasswordChange} className="space-y-6">
+            <div>
+              <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700 mb-1">
+                New Password
+              </label>
               <input
-                type="text"
-                id="shopName"
-                value={shopName}
-                onChange={(e) => setShopName(e.target.value)}
-                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                type="password"
+                id="newPassword"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm placeholder-gray-400"
                 required
+                placeholder="Enter new password"
               />
             </div>
-            
-            <div className="mb-4">
-              <div className="flex items-center justify-between mb-2">
-                <label className="block text-sm font-medium text-gray-700">Shop Location</label>
-                <button
-                  type="button"
-                  onClick={() => setUseMapForLocation(!useMapForLocation)}
-                  className="text-sm text-blue-600 hover:text-blue-800"
-                >
-                  {useMapForLocation ? 'Use text input' : 'Use interactive map'}
-                </button>
-              </div>
-              
-              {useMapForLocation ? (
-                <div className="space-y-2">
-                  <LocationPicker
-                    latitude={shopLatitude}
-                    longitude={shopLongitude}
-                    onLocationChange={handleLocationChange}
-                  />
-                  <p className="text-sm text-gray-600">Click on the map to set your shop location</p>
-                  <input
-                    type="text"
-                    value={shopLocation}
-                    onChange={(e) => setShopLocation(e.target.value)}
-                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                    placeholder="Address will be auto-filled when you click on the map"
-                    required
-                  />
-                </div>
-              ) : (
-                <input
-                  type="text"
-                  id="shopLocation"
-                  value={shopLocation}
-                  onChange={(e) => setShopLocation(e.target.value)}
-                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                  required
-                />
-              )}
-            </div>
-            
-            <button type="submit" className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700">
-              Update Shop Details
+            <button
+              type="submit"
+              className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+            >
+              Update Password
             </button>
           </form>
         </div>
-      )}
-      {user.role === 'seller' && !storeId && !loading && (
-         <p className="text-lg">You do not have a shop yet. Please create one from your dashboard.</p>
-      )}
+
+        {user.role === 'seller' && storeId && (
+          <div className="bg-white shadow-xl rounded-lg p-6 md:p-8">
+            <h2 className="text-2xl font-semibold text-gray-700 mb-6 border-b pb-3">Manage Shop</h2>
+            <form onSubmit={handleShopDetailsUpdate} className="space-y-6">
+              <div>
+                <label htmlFor="shopName" className="block text-sm font-medium text-gray-700 mb-1">
+                  Shop Name
+                </label>
+                <input
+                  type="text"
+                  id="shopName"
+                  value={shopName}
+                  onChange={(e) => setShopName(e.target.value)}
+                  className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm placeholder-gray-400"
+                  required
+                  placeholder="Your Awesome Shop"
+                />
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-medium text-gray-700">Shop Location</label>
+                  <button
+                    type="button"
+                    onClick={() => setUseMapForLocation(!useMapForLocation)}
+                    className="text-sm text-indigo-600 hover:text-indigo-800 font-medium"
+                  >
+                    {useMapForLocation ? 'Enter address manually' : 'Pin on map'}
+                  </button>
+                </div>
+
+                {useMapForLocation ? (
+                  <div className="space-y-3">
+                    <div className="h-72 w-full rounded-lg overflow-hidden border border-gray-300">
+                        <LocationPicker
+                            latitude={shopLatitude}
+                            longitude={shopLongitude}
+                            onLocationChange={handleLocationChange}
+                        />
+                    </div>
+                    <p className="text-xs text-gray-500 italic text-center">Click on the map to set your shop location. The address below will update.</p>
+                    <input
+                      type="text"
+                      value={shopLocation}
+                      onChange={(e) => setShopLocation(e.target.value)} // Allow manual edit if needed
+                      className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm placeholder-gray-400"
+                      placeholder="Address (auto-filled from map or enter manually)"
+                      required
+                    />
+                  </div>
+                ) : (
+                  <input
+                    type="text"
+                    id="shopLocation"
+                    value={shopLocation}
+                    onChange={(e) => setShopLocation(e.target.value)}
+                    className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm placeholder-gray-400"
+                    required
+                    placeholder="Enter shop address"
+                  />
+                )}
+              </div>
+
+              <button
+                type="submit"
+                className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-purple-600 hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
+              >
+                Update Shop Details
+              </button>
+            </form>
+          </div>
+        )}
+        {user.role === 'seller' && !storeId && !loading && (
+          <div className="bg-white shadow-xl rounded-lg p-6 md:p-8 text-center">
+            <p className="text-md text-gray-600">You do not have a shop yet.</p>
+            <p className="text-sm text-gray-500 mt-2">Please create one from your seller dashboard to manage it here.</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

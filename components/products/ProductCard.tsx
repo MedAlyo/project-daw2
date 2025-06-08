@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { Product } from '@/lib/firebase/firestoreActions';
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
+import { FiMapPin, FiShoppingCart, FiLogIn, FiExternalLink, FiAlertTriangle } from 'react-icons/fi';
 
 interface ProductCardProps {
   product: Product;
@@ -14,16 +15,17 @@ interface ProductCardProps {
   distance?: number;
 }
 
-const ProductCard: React.FC<ProductCardProps> = ({ product, userLocation, storeLocation, distance }) => {
+const ProductCard: React.FC<ProductCardProps> = ({ product, distance, storeLocation }) => {
   const { addItem } = useCart();
   const { user } = useAuth();
-  
+
   const imageUrl = product.images && product.images.length > 0 ? product.images[0] : '/placeholder-image.png';
   const isOutOfStock = product.stockQuantity <= 0;
-  
+
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault();
-    if (product && user && user.role === 'buyer') {
+    e.stopPropagation();
+    if (product && user && user.role === 'buyer' && !isOutOfStock) {
       addItem(product);
     }
   };
@@ -34,81 +36,82 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, userLocation, storeL
     }
     return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(product.name)}`;
   };
-  
+
   return (
-    <div className="border border-gray-200 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200 ease-in-out overflow-hidden">
-      <Link href={`/products/${product.id}`} className="block">
-        <div className="relative w-full h-48 bg-gray-200">
-          <Image 
-            src={imageUrl} 
-            alt={product.name}
-            layout="fill"
-            objectFit="cover"
-            className="group-hover:opacity-75 transition-opacity duration-200 ease-in-out"
-          />
-          {distance && (
-            <div className="absolute top-2 right-2 bg-blue-600 text-white text-xs font-medium px-2 py-1 rounded-full shadow-sm">
-              {distance.toFixed(1)} km
+    <div className="bg-white border border-gray-200 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 ease-in-out overflow-hidden flex flex-col h-full group">
+      <Link href={`/products/${product.id}`} className="block relative aspect-square overflow-hidden">
+        <Image
+          src={imageUrl}
+          alt={product.name}
+          fill
+          sizes="(max-width: 640px) 100vw, (max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
+          className="object-cover group-hover:scale-105 transition-transform duration-300 ease-in-out"
+        />
+        {distance !== undefined && (
+          <div className="absolute top-2 right-2 bg-blue-600 text-white text-xs font-semibold px-2.5 py-1 rounded-full shadow-md flex items-center">
+            <FiMapPin className="w-3 h-3 mr-1" /> {distance.toFixed(1)} km
+          </div>
+        )}
+        {isOutOfStock && (
+            <div className="absolute bottom-2 left-2 bg-red-100 text-red-700 text-xs font-medium px-2.5 py-1 rounded-full shadow-sm flex items-center">
+                <FiAlertTriangle className="w-3 h-3 mr-1" /> Out of Stock
             </div>
-          )}
-        </div>
+        )}
       </Link>
-      
-      <div className="p-4">
-        <Link href={`/products/${product.id}`}>
-          <h3 className="text-lg font-semibold text-gray-900 truncate hover:text-blue-600 transition-colors" title={product.name}>
+
+      <div className="p-5 flex flex-col flex-grow">
+        <Link href={`/products/${product.id}`} className="block mb-1">
+          <h3 className="text-lg font-semibold text-gray-800 group-hover:text-blue-600 transition-colors duration-200 truncate" title={product.name}>
             {product.name}
           </h3>
         </Link>
-        
-        <p className="text-xl font-bold text-gray-900 mt-1">
+
+        <p className="text-2xl font-bold text-gray-900 mb-2">
           ${product.price.toFixed(2)}
         </p>
-        
-        {isOutOfStock ? (
-          <p className="text-sm text-red-600 mt-1">Out of Stock</p>
-        ) : (
-          <p className="text-sm text-green-600 mt-1">{product.stockQuantity} in stock</p>
+
+        {!isOutOfStock && product.stockQuantity > 0 && (
+          <p className="text-sm text-green-600 mb-2 font-medium">
+            {product.stockQuantity} in stock
+          </p>
         )}
 
-        {/* Distance and directions */}
-        {distance && (
-          <div className="flex items-center justify-between mt-2 text-sm">
-            <span className="text-gray-600">📍 {distance.toFixed(1)} km away</span>
-            <a 
-              href={getGoogleMapsUrl()}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-red-600 hover:text-red-800 font-medium"
-              onClick={(e) => e.stopPropagation()}
-            >
-              Directions
-            </a>
-          </div>
-        )}
-        
-        {/* add to cart button */}
-        {user && user.role === 'buyer' && (
-          <button
-            onClick={handleAddToCart}
-            disabled={isOutOfStock}
-            className={`w-full mt-3 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
-              isOutOfStock
-                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                : 'bg-blue-600 text-white hover:bg-blue-700'
-            }`}
+        {distance !== undefined && storeLocation && (
+          <a
+            href={getGoogleMapsUrl()}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="text-xs text-blue-500 hover:text-blue-700 font-medium flex items-center mb-3 transition-colors"
           >
-            {isOutOfStock ? 'Out of Stock' : 'Add to Cart'}
-          </button>
+            <FiExternalLink className="w-3 h-3 mr-1" /> Get Directions
+          </a>
         )}
-        
-        {!user && (
-          <Link href="/account/login">
-            <button className="w-full mt-3 py-2 px-4 rounded-md text-sm font-medium bg-gray-100 text-gray-700 hover:bg-gray-200 transition-colors">
-              Login to Purchase
+
+        <div className="mt-auto pt-3">
+          {user && user.role === 'buyer' && (
+            <button
+              onClick={handleAddToCart}
+              disabled={isOutOfStock}
+              className={`w-full py-2.5 px-4 rounded-lg text-sm font-semibold transition-all duration-300 ease-in-out flex items-center justify-center shadow-sm hover:shadow-md transform hover:scale-105 ${isOutOfStock
+                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white'
+                }`}
+            >
+              <FiShoppingCart className="w-4 h-4 mr-2" />
+              {isOutOfStock ? 'Out of Stock' : 'Add to Cart'}
             </button>
-          </Link>
-        )}
+          )}
+
+          {!user && (
+            <Link href="/account/login" className="block w-full">
+              <button className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white w-full py-2.5 px-4 rounded-lg text-sm font-semibold transition-colors duration-300 ease-in-out flex items-center justify-center shadow-sm hover:shadow-md">
+                <FiLogIn className="w-4 h-4 mr-2" />
+                Login to Purchase
+              </button>
+            </Link>
+          )}
+        </div>
       </div>
     </div>
   );

@@ -19,15 +19,12 @@ export default function ShopsPage() {
   useEffect(() => {
     const fetchStoresAndLocation = async () => {
       try {
-        // Fetch stores
         const allStores = await getAllStores();
         
-        // Try to get user location
         try {
           const location = await getUserLocation();
           setUserLocation(location);
           
-          // Calculate distances for stores that have coordinates
           const storesWithDistance: StoreWithDistance[] = allStores.map(store => {
             if (store.latitude && store.longitude) {
               const distance = calculateDistance(
@@ -41,7 +38,6 @@ export default function ShopsPage() {
             return { ...store };
           });
           
-          // Sort by distance (closest first)
           storesWithDistance.sort((a: StoreWithDistance, b: StoreWithDistance) => {
             if (a.distance && b.distance) return a.distance - b.distance;
             if (a.distance) return -1;
@@ -78,17 +74,19 @@ export default function ShopsPage() {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold mb-6">Shops</h1>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[1, 2, 3, 4, 5, 6].map((item) => (
-            <div key={item} className="border border-gray-200 rounded-lg p-6 shadow-sm animate-pulse">
-              <div className="bg-gray-200 h-32 rounded-md mb-4"></div>
-              <div className="h-6 bg-gray-200 rounded mb-2"></div>
-              <div className="h-4 bg-gray-200 rounded mb-2"></div>
-              <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-            </div>
-          ))}
+      <div className="min-h-screen bg-gray-50 text-gray-800 p-4 sm:p-6 lg:p-8">
+        <div className="container mx-auto px-4 py-8">
+          <h1 className="text-4xl font-bold mb-8 text-center text-gray-700">Discover Shops</h1>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[1, 2, 3, 4, 5, 6].map((item) => (
+              <div key={item} className="bg-white border border-gray-200 rounded-xl p-6 shadow-lg animate-pulse">
+                <div className="bg-gray-200 h-40 rounded-lg mb-4"></div>
+                <div className="h-6 bg-gray-200 rounded mb-3 w-3/4"></div>
+                <div className="h-4 bg-gray-200 rounded mb-2 w-1/2"></div>
+                <div className="h-4 bg-gray-200 rounded w-5/6"></div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     );
@@ -96,129 +94,132 @@ export default function ShopsPage() {
 
   if (error) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold mb-6">Shops</h1>
-        <div className="text-center py-8">
-          <p className="text-red-600">{error}</p>
+      <div className="min-h-screen bg-gray-50 text-gray-800 p-4 sm:p-6 lg:p-8">
+        <div className="container mx-auto px-4 py-8">
+          <h1 className="text-4xl font-bold mb-8 text-center text-gray-700">Discover Shops</h1>
+          <div className="text-center py-12">
+            <p className="text-red-600 text-xl">{error}</p>
+            <p className="text-gray-600 mt-2">We couldn't load the shops. Please try again later.</p>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-3xl font-bold mb-6">Shops</h1>
-      <p className="text-gray-600 mb-4">Discover local shops and sellers in your area.</p>
-      
-      {locationError && (
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
-          <p className="text-yellow-800 text-sm">{locationError}</p>
-        </div>
-      )}
-      
-      {userLocation && (
-        <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
-          <p className="text-green-800 text-sm">📍 Showing distances from your current location</p>
-        </div>
-      )}
-      
-      {stores.length > 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {stores.map((store) => (
-            <div key={store.id} className="bg-gray-100 border border-gray-200 rounded-lg p-6 shadow-sm hover:shadow-md transition-shadow">
-              {store.bannerUrl && (
-                <img 
-                  src={store.bannerUrl} 
-                  alt={`${store.name} banner`}
-                  className="w-full h-32 object-cover rounded-md mb-4"
-                />
-              )}
-              
-              <div className="flex items-start gap-4">
-                {store.logoUrl && (
+    <div className="min-h-screen bg-gray-50 text-gray-800 p-4 sm:p-6 lg:p-8">
+      <div className="container mx-auto px-4 py-8">
+        <h1 className="text-4xl font-bold mb-2 text-center text-gray-700">Discover Shops</h1>
+        <p className="text-gray-600 mb-8 text-center text-lg">Explore local shops and unique sellers in your area.</p>
+        
+        {stores.length > 0 ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-x-6 gap-y-8">
+            {stores.map((store) => (
+              <div 
+                key={store.id} 
+                className="bg-white border border-gray-200 rounded-xl p-5 shadow-lg hover:shadow-indigo-500/30 transition-all duration-300 ease-in-out transform hover:-translate-y-1"
+              >
+                {store.bannerUrl && (
                   <img 
-                    src={store.logoUrl} 
-                    alt={`${store.name} logo`}
-                    className="w-16 h-16 object-cover rounded-full"
+                    src={store.bannerUrl} 
+                    alt={`${store.name} banner`}
+                    className="w-full h-36 object-cover rounded-lg mb-4 shadow-sm"
                   />
                 )}
                 
-                <div className="flex-1">
-                  <div className="flex items-start justify-between mb-2">
-                    <h3 className="text-xl font-semibold text-gray-800">{store.name}</h3>
-                    {store.distance && (
-                      <span className="text-sm font-medium text-blue-600 bg-blue-50 px-2 py-1 rounded-full">
-                        {store.distance.toFixed(1)} km
-                      </span>
-                    )}
-                  </div>
+                <div className="flex items-start gap-4">
+                  {store.logoUrl && (
+                    <img 
+                      src={store.logoUrl} 
+                      alt={`${store.name} logo`}
+                      className="w-16 h-16 object-cover rounded-full border-2 border-gray-200 shadow-sm"
+                    />
+                  )}
                   
-                  <p className="text-gray-600 text-sm mb-2">{store.description}</p>
-                  
-                  <div className="text-sm text-gray-500 mb-2">
-                    {store.location ? (
-                      <p>{store.location}</p>
-                    ) : (
-                      <>
-                        <p>{store.address}</p>
-                        <p>{store.city}, {store.country} {store.postalCode}</p>
-                      </>
-                    )}
-                  </div>
-                  
-                  {store.categories && store.categories.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mb-3">
-                      {store.categories.slice(0, 3).map((category, index) => (
-                        <span 
-                          key={index}
-                          className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full"
-                        >
-                          {category}
-                        </span>
-                      ))}
-                      {store.categories.length > 3 && (
-                        <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
-                          +{store.categories.length - 3} more
+                  <div className="flex-1">
+                    <div className="flex items-start justify-between mb-1">
+                      <h3 className="text-xl font-semibold text-indigo-600 hover:text-indigo-700 transition-colors">
+                        <Link href={`/shops/${store.id}`}>{store.name}</Link>
+                      </h3>
+                      {store.distance !== undefined && (
+                        <span className="text-xs font-medium text-purple-700 bg-purple-100 px-2.5 py-1 rounded-full whitespace-nowrap">
+                          {store.distance.toFixed(1)} km
                         </span>
                       )}
                     </div>
-                  )}
-                  
-                  <div className="flex gap-2 flex-wrap">
-                    <Link 
-                      href={`/shops/${store.id}`}
-                      className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-                    >
-                      View Store
-                    </Link>
-                    {store.phone && (
-                      <a 
-                        href={`tel:${store.phone}`}
-                        className="text-green-600 hover:text-green-800 text-sm font-medium"
-                      >
-                        Call
-                      </a>
+                    
+                    <p className="text-gray-600 text-sm mb-3 leading-relaxed line-clamp-2">{store.description}</p>
+                    
+                    <div className="text-xs text-gray-500 mb-3">
+                      {store.location ? (
+                        <p>{store.location}</p>
+                      ) : (
+                        <>
+                          {store.address && <p>{store.address}</p>}
+                          {(store.city || store.country || store.postalCode) && 
+                            <p>{[store.city, store.country, store.postalCode].filter(Boolean).join(', ')}</p>}
+                        </>
+                      )}
+                    </div>
+                    
+                    {store.categories && store.categories.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mb-4">
+                        {store.categories.slice(0, 3).map((category, index) => (
+                          <span 
+                            key={index}
+                            className="px-2.5 py-1 bg-gray-100 text-gray-700 text-xs rounded-full shadow-sm"
+                          >
+                            {category}
+                          </span>
+                        ))}
+                        {store.categories.length > 3 && (
+                          <span className="px-2.5 py-1 bg-gray-200 text-gray-600 text-xs rounded-full shadow-sm">
+                            +{store.categories.length - 3} more
+                          </span>
+                        )}
+                      </div>
                     )}
-                    <a 
-                      href={getGoogleMapsUrl(store)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-red-600 hover:text-red-800 text-sm font-medium"
-                    >
-                      📍 Directions
-                    </a>
+                    
+                    <div className="flex flex-wrap gap-3 mt-auto pt-3 border-t border-gray-200">
+                      <Link 
+                        href={`/shops/${store.id}`}
+                        className="flex items-center justify-center px-4 py-2 rounded-lg text-sm font-medium bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white shadow-md hover:shadow-lg hover:shadow-indigo-500/40 transition-all duration-300 ease-in-out transform hover:scale-105 flex-grow sm:flex-grow-0"
+                      >
+                        View Store
+                      </Link>
+                      {store.phone && (
+                        <a 
+                          href={`tel:${store.phone}`}
+                          className="flex items-center justify-center px-4 py-2 rounded-lg text-sm font-medium bg-gray-200 hover:bg-gray-300 text-gray-700 shadow-md hover:shadow-lg transition-all duration-300 ease-in-out transform hover:scale-105 flex-grow sm:flex-grow-0"
+                        >
+                          Call
+                        </a>
+                      )}
+                      <a 
+                        href={getGoogleMapsUrl(store)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center justify-center px-4 py-2 rounded-lg text-sm font-medium bg-gray-200 hover:bg-gray-300 text-gray-700 shadow-md hover:shadow-lg transition-all duration-300 ease-in-out transform hover:scale-105 flex-grow sm:flex-grow-0"
+                      >
+                        📍 Directions
+                      </a>
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="text-center py-12">
-          <p className="text-gray-500 text-lg">No shops available at the moment.</p>
-          <p className="text-gray-400 text-sm mt-2">Check back later for new local businesses!</p>
-        </div>
-      )}
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-16">
+            <svg className="mx-auto h-16 w-16 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+              <path vectorEffect="non-scaling-stroke" strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0zM12 6v.01M12 18v.01" />
+            </svg>
+            <h3 className="mt-2 text-2xl font-semibold text-gray-700">No Shops Found</h3>
+            <p className="mt-1 text-gray-500">We couldn't find any shops matching your criteria or there are no shops available yet.</p>
+            <p className="text-gray-500 text-sm mt-1">Check back later for new local businesses!</p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

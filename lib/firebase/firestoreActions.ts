@@ -1,5 +1,4 @@
-// lib/firebase/firestoreActions.ts
-import { db } from '@/lib/firebase/config'; // Import your initialized Firestore instance
+import { db, auth } from '@/lib/firebase/config';
 import {
   collection,
   addDoc,
@@ -13,24 +12,24 @@ import {
   deleteDoc,
   Timestamp,
   orderBy,
+  limit,
 } from 'firebase/firestore';
-import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage'; // <-- ADDED: Firebase Storage imports
-import { calculateDistance } from '@/lib/utils/location'; // <-- ADDED: Import calculateDistance
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { calculateDistance } from '@/lib/utils/location';
 
 const productsCollection = collection(db, 'products');
 const usersCollection = collection(db, 'users');
 const storesCollection = collection(db, 'stores');
 const ordersCollection = collection(db, 'orders');
 
-// User Profile Interface
 export interface UserProfile {
   uid: string;
   email: string | null;
   displayName: string | null;
-  role: 'buyer' | 'seller'; // Example roles
-  storeId?: string; // Optional: if the user is a seller
+  role: 'buyer' | 'seller';
+  storeId?: string; 
   createdAt: Timestamp;
-  // Add other profile fields as needed
+  
 }
 
 interface ProductData {
@@ -39,11 +38,10 @@ interface ProductData {
   name: string;
   description: string;
   price: number;
-  // stock: number; // Changed from stock
-  stockQuantity: number; // Changed to stockQuantity
+  stockQuantity: number;
   status: 'active' | 'draft';
-  // imageUrl?: string; // Changed from imageUrl
-  images?: string[]; // Changed to images (array of strings, optional)
+  images?: string[];
+  category?: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -88,7 +86,6 @@ export const uploadProductImage = async (file: File, productId: string): Promise
  */
 export const addProduct = async (sellerUid: string, storeId: string, productData: Omit<Product, 'id' | 'sellerId' | 'storeId' | 'createdAt' | 'updatedAt'>): Promise<string> => {
   try {
-    // Add createdAt and updatedAt timestamps
     const now = Timestamp.now();
     const dataToSave: ProductData = {
       sellerId: sellerUid, 
@@ -98,13 +95,13 @@ export const addProduct = async (sellerUid: string, storeId: string, productData
       price: productData.price,
       stockQuantity: productData.stockQuantity,
       status: productData.status,
-      images: productData.images || [], // Ensure images is an array, default to empty if not provided
+      images: productData.images || [],
+      category: productData.category, 
       createdAt: now,
       updatedAt: now,
     };
 
-    // Add the document to the 'products' collection
-    const docRef = await addDoc(productsCollection, dataToSave); // Changed to save dataToSave
+    const docRef = await addDoc(productsCollection, dataToSave);
     console.log('Product added with ID: ', docRef.id);
     return docRef.id;
   } catch (e) {
@@ -219,25 +216,53 @@ export const getUserProfile = async (uid: string): Promise<UserProfile | null> =
 
 // TODO: Add other user-related functions like createUserProfile, updateUserProfile if they don't exist
 
+// Add this function
+/**
+ * Creates a new user profile in Firestore.
+ * @param uid The user's unique ID.
+ * @param displayName The user's display name.
+ * @param role The user's role ('buyer' or 'seller').
+ * @returns A promise that resolves when the profile is created.
+ */
+export const createUserProfile = async (uid: string, displayName: string, role: 'buyer' | 'seller'): Promise<void> => {
+  try {
+    const userDocRef = doc(usersCollection, uid);
+    await setDoc(userDocRef, {
+      email: auth.currentUser?.email, // Assuming you want to store the email
+      displayName: displayName,
+      role: role,
+      createdAt: Timestamp.now(),
+      // Add other default profile fields here if needed
+    });
+    console.log(`User profile created for UID: ${uid}`);
+  } catch (error) {
+    console.error('Error creating user profile:', error);
+    throw new Error('Failed to create user profile.');
+  }
+};
+
 // Store Interface (Assuming a basic structure)
 export interface Store {
   id: string;
   ownerId: string;
   name: string;
-  location: string;
-  description?: string;
-  bannerUrl?: string;
-  logoUrl?: string;
-  address?: string;
-  city?: string;
-  country?: string;
-  postalCode?: string;
-  categories?: string[];
-  phone?: string;
+  description: string;
+  profilePictureUrl?: string;
+  bannerImageUrl?: string;
+  address: string;
   latitude?: number;
   longitude?: number;
+  contactEmail?: string;
+  contactPhone?: string;
+  website?: string;
+  socialMediaLinks?: Record<string, string>;
+  operatingHours?: Record<string, string>; 
+  isVerified: boolean;
   createdAt: Timestamp;
   updatedAt: Timestamp;
+  tags?: string[];
+  averageRating?: number;
+  reviewCount?: number;
 }
 
 export interface StoreData {
@@ -358,16 +383,28 @@ export const updateStoreDetails = async (storeId: string, updates: Partial<Store
 // Order Interface
 export interface Order {
   id: string;
-  buyerId: string;
-  buyerName?: string;
-  sellerId: string;
+  userId: string;
+  sellerId: string; 
   storeId: string;
-  items: Array<{ productId: string; productName: string; quantity: number; price: number }>;
+  items: Array<{ productId: string; productName: string; quantity: number; price: number; image?: string; storeId: string }>;
   totalAmount: number;
-  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
-  shippingAddress: ShippingAddress;
+  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'completed' | 'cancelled' | 'refunded'; // Added 'refunded'
+  shippingAddress: {
+    name: string;
+    addressLine1: string;
+    addressLine2?: string;
+    city: string;
+    state: string;
+    postalCode: string;
+    country: string;
+    phoneNumber?: string;
+  };
+  paymentMethod: string; 
+  paymentResult?: any; 
   createdAt: Timestamp;
   updatedAt: Timestamp;
+  trackingNumber?: string;
+  notes?: string; 
 }
 
 // Order Functions
@@ -397,17 +434,17 @@ export const getOrdersBySeller = async (sellerId: string, status?: Order['status
 /**
  * Updates the status of an order.
  * @param orderId The ID of the order to update.
- * @param status The new status of the order.
+ * @param newStatus The new status of the order.
  * @returns A promise that resolves when the order status is updated.
  */
-export const updateOrderStatus = async (orderId: string, status: Order['status']): Promise<void> => {
+export const updateOrderStatus = async (orderId: string, newStatus: Order['status']): Promise<void> => {
   try {
     const orderDocRef = doc(ordersCollection, orderId);
     await updateDoc(orderDocRef, {
-      status: status,
+      status: newStatus,
       updatedAt: Timestamp.now(),
     });
-    console.log(`Order with ID: ${orderId} status updated to ${status}.`);
+    console.log(`Order ${orderId} status updated to ${newStatus}`);
   } catch (error) {
     console.error('Error updating order status:', error);
     throw new Error('Failed to update order status.');
@@ -482,14 +519,33 @@ export interface ShippingAddress {
 }
 
 // order creation data interface
+export interface OrderItem {
+  productId: string;
+  productName: string;
+  quantity: number;
+  price: number;
+  imageUrl?: string;
+}
+
 export interface OrderCreateData {
   buyerId: string;
-  buyerName: string;
+  buyerName: string; 
   sellerId: string;
   storeId: string;
-  items: Array<{ productId: string; productName: string; quantity: number; price: number }>;
+  items: OrderItem[];
   totalAmount: number;
-  shippingAddress: ShippingAddress;
+  shippingAddress: any;
+  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'refunded' | 'completed'; // Added 'completed'
+  paymentMethod: string;
+  shippingCost: number;
+  taxAmount: number;
+}
+
+export interface Order extends OrderCreateData {
+  id: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+  // status is inherited from OrderCreateData and now includes 'completed'
 }
 
 /**
@@ -523,18 +579,16 @@ export const createOrder = async (orderData: OrderCreateData): Promise<string> =
  */
 export const getOrderById = async (orderId: string): Promise<Order | null> => {
   try {
-    const orderDoc = doc(ordersCollection, orderId);
-    const orderSnapshot = await getDoc(orderDoc);
-    
-    if (orderSnapshot.exists()) {
-      return { id: orderSnapshot.id, ...orderSnapshot.data() } as Order;
-    } else {
-      console.log('No order found with ID:', orderId);
-      return null;
+    const orderDocRef = doc(ordersCollection, orderId);
+    const docSnap = await getDoc(orderDocRef);
+    if (docSnap.exists()) {
+      return { id: docSnap.id, ...docSnap.data() } as Order;
     }
+    console.log('No such order found!');
+    return null;
   } catch (error) {
-    console.error('Error fetching order:', error);
-    throw new Error('Failed to fetch order');
+    console.error('Error fetching order by ID:', error);
+    throw new Error('Failed to fetch order details.');
   }
 };
 
@@ -632,5 +686,31 @@ export const getFeaturedProducts = async (): Promise<Product[]> => {
   } catch (error) {
     console.error('Error fetching featured products:', error);
     throw new Error('Failed to fetch featured products.');
+  }
+};
+
+export const getProductSuggestions = async (searchQuery: string): Promise<Product[]> => {
+  if (!searchQuery.trim()) {
+    return [];
+  }
+
+  const productsRef = collection(db, 'products');
+  const q = query(
+    productsRef,
+    where('name', '>=', searchQuery.toLowerCase()), 
+    where('name', '<=', searchQuery.toLowerCase() + '\uf8ff'), 
+    limit(10) 
+  );
+
+  try {
+    const querySnapshot = await getDocs(q);
+    const suggestions: Product[] = [];
+    querySnapshot.forEach((doc) => {
+      suggestions.push({ id: doc.id, ...doc.data() } as Product);
+    });
+    return suggestions;
+  } catch (error) {
+    console.error('Error fetching product suggestions:', error);
+    throw new Error('Failed to fetch product suggestions.'); // Or return [] depending on how you want to handle errors
   }
 };

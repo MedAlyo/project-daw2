@@ -34,7 +34,7 @@ export default function EditProductPage() {
       return;
     }
     if (user.role !== 'seller') {
-      router.push('/dashboard/buyer'); // Or some other appropriate page
+      router.push('/dashboard/buyer');
       return;
     }
 
@@ -144,50 +144,66 @@ export default function EditProductPage() {
   };
 
   if (authLoading || (isLoading && !error && !product)) {
-    return <div className="flex justify-center items-center h-screen"><p className="text-lg">Loading product details...</p></div>;
-  }
-
-  if (error && !product) { // Show error if product couldn't be loaded at all
     return (
-      <div className="container mx-auto px-4 py-8">
-        <p className="text-red-500 text-center">{error}</p>
-        <div className="text-center mt-4">
-          <Link href="/dashboard/seller" legacyBehavior>
-            <a className="text-indigo-600 hover:text-indigo-800 font-medium">
-              Back to Dashboard
-            </a>
-          </Link>
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-indigo-50 to-pink-50 flex justify-center items-center p-4">
+        <div className="text-center">
+          <p className="text-xl font-semibold text-indigo-600">Loading product details...</p>
+          <p className="text-gray-500 mt-2">Please wait a moment.</p>
         </div>
       </div>
     );
   }
-  
-  if (!product) { // Should ideally be covered by isLoading or error states
-      return <div className="flex justify-center items-center h-screen"><p className="text-lg">Product not found or not authorized.</p></div>;
+
+  if (error && !product) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-indigo-50 to-pink-50 flex justify-center items-center p-4">
+        <div className="bg-white shadow-lg rounded-lg p-8 text-center">
+          <p className="text-red-600 text-lg font-semibold">{error}</p>
+          <div className="mt-6">
+            <Link href="/dashboard/seller" legacyBehavior>
+              <a className="px-6 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white font-semibold rounded-lg shadow-md transition-colors">
+                Back to Dashboard
+              </a>
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
   }
 
+  if (!product) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-purple-50 via-indigo-50 to-pink-50 flex justify-center items-center p-4">
+        <div className="text-center">
+          <p className="text-xl font-semibold text-gray-700">Product not found or not authorized.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-gray-100 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-3xl mx-auto">
-        <div className="bg-white shadow-xl rounded-lg p-8 md:p-10">
-          <div className="flex justify-between items-center mb-8">
-            <h1 className="text-3xl font-bold text-gray-800">Edit Product</h1>
+    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-indigo-50 to-pink-50 py-10 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-2xl mx-auto">
+        <div className="bg-white shadow-lg rounded-xl p-6 sm:p-8">
+          <div className="flex justify-between items-start mb-6 sm:mb-8">
+            <h1 className="text-3xl sm:text-4xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-purple-600 to-indigo-600">
+              Edit Product
+            </h1>
             <Link href="/dashboard/seller" legacyBehavior>
-              <a className="text-sm text-indigo-600 hover:text-indigo-800 font-medium">
+              <a className="text-sm text-indigo-600 hover:text-indigo-700 font-medium whitespace-nowrap mt-1">
                 &larr; Back to Dashboard
               </a>
             </Link>
           </div>
 
           {error && (
-            <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-6" role="alert">
+            <div className="bg-red-50 border-l-4 border-red-400 text-red-700 p-4 mb-6 rounded-md shadow-sm" role="alert">
               <strong className="font-bold">Error: </strong>
               <span className="block sm:inline">{error}</span>
             </div>
           )}
           {successMessage && (
-            <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-6" role="alert">
+            <div className="bg-green-50 border-l-4 border-green-400 text-green-700 p-4 mb-6 rounded-md shadow-sm" role="alert">
               <strong className="font-bold">Success: </strong>
               <span className="block sm:inline">{successMessage}</span>
             </div>
@@ -203,10 +219,11 @@ export default function EditProductPage() {
                 name="name"
                 id="name"
                 required
-                className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm placeholder-gray-400"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                disabled={isLoading}
+                disabled={isLoading || isUploadingImage}
+                placeholder="e.g. Handcrafted Wooden Bowl"
               />
             </div>
 
@@ -219,10 +236,11 @@ export default function EditProductPage() {
                 id="description"
                 rows={4}
                 required
-                className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm placeholder-gray-400"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                disabled={isLoading}
+                disabled={isLoading || isUploadingImage}
+                placeholder="Describe your product in detail..."
               />
             </div>
 
@@ -238,27 +256,29 @@ export default function EditProductPage() {
                   required
                   min="0.01"
                   step="0.01"
-                  className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm placeholder-gray-400"
                   value={price}
                   onChange={(e) => setPrice(e.target.value)}
-                  disabled={isLoading}
+                  disabled={isLoading || isUploadingImage}
+                  placeholder="e.g. 29.99"
                 />
               </div>
               <div>
-                <label htmlFor="stock" className="block text-sm font-medium text-gray-700 mb-1">
+                <label htmlFor="stockQuantity" className="block text-sm font-medium text-gray-700 mb-1">
                   Stock Quantity
                 </label>
                 <input
                   type="number"
-                  name="stock" // HTML name attribute can remain 'stock' if preferred, but ensure consistency
-                  id="stock"   // HTML id attribute can remain 'stock' if preferred
+                  name="stockQuantity"
+                  id="stockQuantity"
                   required
                   min="0"
                   step="1"
-                  className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                  value={stockQuantity} // Changed from stock
-                  onChange={(e) => setStockQuantity(e.target.value)} // Changed from setStock
-                  disabled={isLoading}
+                  className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm placeholder-gray-400"
+                  value={stockQuantity}
+                  onChange={(e) => setStockQuantity(e.target.value)}
+                  disabled={isLoading || isUploadingImage}
+                  placeholder="e.g. 50"
                 />
               </div>
             </div>
@@ -271,33 +291,44 @@ export default function EditProductPage() {
                 name="status"
                 id="status"
                 required
-                className="mt-1 block w-full px-4 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                className="mt-1 block w-full px-3 py-2 border border-gray-300 bg-white rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                 value={status}
                 onChange={(e) => setStatus(e.target.value as 'active' | 'draft')}
-                disabled={isLoading}
+                disabled={isLoading || isUploadingImage}
               >
                 <option value="draft">Draft</option>
                 <option value="active">Active</option>
               </select>
             </div>
-            
-            {/* Placeholder for image upload if you add it later */}
-            {/* 
-            <div>
-              <label htmlFor="image" className="block text-sm font-medium text-gray-700 mb-1">
-                Product Image (Optional)
-              </label>
-              <input type="file" name="image" id="image" className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"/>
-            </div>
-            */}
 
-            <div className="pt-2">
+            <div>
+              <label htmlFor="imageFile" className="block text-sm font-medium text-gray-700 mb-1">
+                Product Image (Current: {product.images && product.images[0] ? 'Uploaded' : 'None'})
+              </label>
+              {product.images && product.images[0] && (
+                <div className="my-2">
+                  <img src={product.images[0]} alt={product.name} className="max-h-40 rounded-md border border-gray-200 shadow-sm" />
+                </div>
+              )}
+              <input 
+                type="file" 
+                name="imageFile" 
+                id="imageFile" 
+                accept="image/*"
+                onChange={(e) => setImageFile(e.target.files ? e.target.files[0] : null)}
+                className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-600 hover:file:bg-indigo-100 disabled:opacity-50"
+                disabled={isLoading || isUploadingImage}
+              />
+              {isUploadingImage && <p className="text-xs text-indigo-600 mt-1">Uploading image...</p>}
+            </div>
+
+            <div className="pt-4">
               <button
                 type="submit"
-                disabled={isLoading}
-                className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-gray-400"
+                disabled={isLoading || isUploadingImage}
+                className="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-gray-300 disabled:from-gray-300 disabled:to-gray-300 disabled:cursor-not-allowed transition-all duration-150 ease-in-out"
               >
-                {isLoading ? 'Saving...' : 'Save Changes'}
+                {isLoading || isUploadingImage ? 'Saving...' : 'Save Changes'}
               </button>
             </div>
           </form>

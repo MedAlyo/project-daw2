@@ -1,118 +1,87 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import CreateProductForm from '@/components/dashboard/CreateProductForm';
 import ProductList from '@/components/dashboard/ProductList';
 import { getProductsBySeller, Product, deleteProduct, getStoresByOwner, getOrdersBySeller, Order, updateOrderStatus } from '@/lib/firebase/firestoreActions';
 import Link from 'next/link';
+import { FiPlusCircle, FiEye, FiAlertCircle, FiCheckCircle, FiArchive, FiSend, FiEdit3, FiTrash2, FiPackage, FiClipboard, FiLoader } from 'react-icons/fi';
 
 export default function SellerDashboardPage() {
-  const { user, loading } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const router = useRouter();
-  const [infoMessage, setInfoMessage] = useState<string | null>(null);
+  const [infoMessage, setInfoMessage] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoadingProducts, setIsLoadingProducts] = useState(true);
   const [currentStoreId, setCurrentStoreId] = useState<string | null>(null);
   const [pendingOrders, setPendingOrders] = useState<Order[]>([]);
-  const [isLoadingOrders, setIsLoadingOrders] = useState(false);
-  const [isAddProductFormVisible, setIsAddProductFormVisible] = useState(false); // New state for form visibility
+  const [isLoadingOrders, setIsLoadingOrders] = useState(true);
+  const [isAddProductFormVisible, setIsAddProductFormVisible] = useState(false);
 
-  // Function to fetch/refresh products
-  const fetchSellerProducts = async () => {
-    if (user && user.uid) {
+  const clearInfoMessage = useCallback(() => {
+    setTimeout(() => setInfoMessage(null), 5000);
+  }, []);
+
+  const fetchSellerData = useCallback(async () => {
+    if (user?.uid) {
       setIsLoadingProducts(true);
+      setIsLoadingOrders(true);
       try {
-        const fetchedProducts = await getProductsBySeller(user.uid);
-        setProducts(fetchedProducts);
+        const stores = await getStoresByOwner(user.uid);
+        if (stores.length > 0) {
+          const storeId = stores[0]?.id;
+          setCurrentStoreId(storeId ?? null);
+          if (storeId) {
+            const [fetchedProducts, fetchedOrders] = await Promise.all([
+              getProductsBySeller(user.uid),
+              getOrdersBySeller(user.uid, 'pending'),
+            ]);
+            setProducts(fetchedProducts);
+            setPendingOrders(fetchedOrders);
+          } else {
+            setProducts([]);
+            setPendingOrders([]);
+          }
+        } else {
+          setInfoMessage({ type: 'error', message: 'No stores found. Please create a store first.' });
+          setCurrentStoreId('no-store');
+          setProducts([]);
+          setPendingOrders([]);
+        }
       } catch (error) {
-        console.error('Error fetching products:', error);
-        setInfoMessage('Error fetching your products. Please try again later.');
+        console.error('Error fetching seller data:', error);
+        setInfoMessage({ type: 'error', message: 'Error loading your dashboard data. Please try again later.' });
+        setCurrentStoreId('error');
       } finally {
         setIsLoadingProducts(false);
+        setIsLoadingOrders(false);
       }
     }
-  };
-
-  const fetchSellerStores = async () => {
-    if (!user?.uid) return;
-
-    try {
-      const stores = await getStoresByOwner(user.uid);
-
-      if (stores.length > 0) {
-        setCurrentStoreId(stores[0]?.id ?? null);
-      } else {
-        setInfoMessage('No stores found. Please create a store first.');
-        setCurrentStoreId('no-store');
-      }
-    } catch (error) {
-      console.error('Error in fetchSellerStores:', error);
-      setInfoMessage('Error loading store information.');
-      // Set a default store ID to prevent infinite loading
-      setCurrentStoreId('error');
-    }
-  };
-
-  // Fetch pending orders for the seller
-  const fetchPendingOrders = async () => {
-    if (!user?.uid) return;
-
-    setIsLoadingOrders(true);
-    try {
-      const orders = await getOrdersBySeller(user.uid, 'pending');
-      setPendingOrders(orders);
-    } catch (error) {
-      console.error('Error fetching orders:', error);
-      setInfoMessage('Error loading pending orders.');
-    } finally {
-      setIsLoadingOrders(false);
-    }
-  };
-
-  // Handle order status update
-  const handleUpdateOrderStatus = async (orderId: string, newStatus: Order['status']) => {
-    try {
-      await updateOrderStatus(orderId, newStatus);
-      setInfoMessage(`Order ${orderId} status updated to ${newStatus}`);
-      await fetchPendingOrders(); // Refresh the orders list
-    } catch (error) {
-      console.error('Error updating order status:', error);
-      setInfoMessage('Failed to update order status. Please try again.');
-    }
-  };
-
-  // Fetch data on initial load
-  useEffect(() => {
-    const fetchData = async () => {
-      if (user?.uid) {
-        await Promise.all([
-          fetchSellerProducts(),
-          fetchSellerStores(),
-          fetchPendingOrders()
-        ]);
-      }
-    };
-
-    fetchData();
   }, [user]);
 
-  // Protect the route: Redirect if not authenticated or if user is a buyer
   useEffect(() => {
-    if (!loading) {
+    if (!authLoading) {
       if (!user) {
         router.push('/account/login');
       } else if (user.role === 'buyer') {
         router.push('/dashboard/buyer');
+      } else if (user.role === 'seller') {
+        fetchSellerData();
       }
     }
-  }, [user, loading, router]);
+  }, [user, authLoading, router, fetchSellerData]);
 
-  const handleProductCreated = async (productId: string) => {
-    setInfoMessage(`Product successfully created with ID: ${productId}. You can now view it in your listings.`);
-    await fetchSellerProducts(); // Refresh product list
-    setTimeout(() => setInfoMessage(null), 5000); // Clear message after 5 seconds
+  const handleProductCreated = async () => {
+    if (!user) {
+      setInfoMessage({ type: 'error', message: 'User not found. Cannot refresh products.' });
+      clearInfoMessage();
+      return;
+    }
+    await fetchSellerData();
+    setInfoMessage({ type: 'success', message: 'Product created successfully!' });
+    setTimeout(() => setInfoMessage(null), 3000);
   };
 
   const handleEditProduct = (productId: string) => {
@@ -121,121 +90,154 @@ export default function SellerDashboardPage() {
 
   const handleDeleteProduct = async (productId: string) => {
     if (!user || !user.uid) {
-      setInfoMessage('You must be logged in to delete products.');
+      setInfoMessage({ type: 'error', message: 'You must be logged in to delete products.' });
+      clearInfoMessage();
       return;
     }
-    // Confirmation is handled in ProductList, but you could add another layer here if needed
     try {
-      await deleteProduct(productId); // Call Firestore action to delete
-      setInfoMessage('Product successfully deleted.');
-      await fetchSellerProducts(); // Refresh the product list
+      await deleteProduct(productId);
+      setInfoMessage({ type: 'success', message: 'Product successfully deleted.' });
+      await fetchSellerData();
     } catch (error) {
       console.error('Error deleting product:', error);
-      setInfoMessage('Failed to delete product. Please try again.');
-    } finally {
-      setTimeout(() => setInfoMessage(null), 5000); // Clear message
+      setInfoMessage({ type: 'error', message: 'Failed to delete product. Please try again.' });
     }
+    clearInfoMessage();
   };
 
-  if (loading || !user || (user.role === 'seller' && !currentStoreId)) {
+  const handleUpdateOrderStatus = async (orderId: string, newStatus: Order['status']) => {
+    try {
+      await updateOrderStatus(orderId, newStatus);
+      setInfoMessage({ type: 'success', message: `Order ${orderId} status updated to ${newStatus}` });
+      await fetchSellerData();
+    } catch (error) {
+      console.error('Error updating order status:', error);
+      setInfoMessage({ type: 'error', message: 'Failed to update order status. Please try again.' });
+    }
+    clearInfoMessage();
+  };
+
+  if (authLoading || !user || (user.role === 'seller' && currentStoreId === null)) {
     return (
-      <div className="flex items-center justify-center min-h-[calc(100vh-200px)]">
-        <p className="text-gray-700">Loading dashboard...</p>
+      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)] bg-gradient-to-br from-slate-100 to-sky-100 p-6">
+        <FiLoader className="animate-spin text-4xl text-blue-600 mb-4" />
+        <p className="text-xl text-gray-700 font-semibold">Loading your dashboard...</p>
+        <p className="text-gray-500">Please wait a moment.</p>
       </div>
     );
   }
 
-  // Ensure user is a seller before rendering seller-specific content
   if (user.role !== 'seller') {
-    // This case should ideally be handled by the redirect effect, 
-    // but as a fallback or for clarity:
     return (
-      <div className="flex items-center justify-center min-h-[calc(100vh-200px)]">
-        <p className="text-gray-700">Access denied. Redirecting...</p>
+      <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)] bg-gradient-to-br from-slate-100 to-red-100 p-6">
+        <FiAlertCircle className="text-4xl text-red-600 mb-4" />
+        <p className="text-xl text-red-700 font-semibold">Access Denied</p>
+        <p className="text-gray-500">You do not have permission to view this page. Redirecting...</p>
       </div>
     );
   }
+
   if (currentStoreId === 'no-store') {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-2xl mx-auto text-center">
-          <h1 className="text-2xl font-bold mb-4">Welcome to Your Seller Dashboard</h1>
-          <p className="mb-6">You need to create a store before you can start selling.</p>
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12 bg-gradient-to-br from-slate-50 to-sky-50 min-h-[calc(100vh-160px)] flex flex-col justify-center items-center">
+        <div className="max-w-md text-center p-8 bg-white shadow-xl rounded-xl">
+          <FiAlertCircle className="text-5xl text-blue-500 mx-auto mb-6" />
+          <h1 className="text-3xl font-bold mb-4 text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">
+            Welcome, Seller!
+          </h1>
+          <p className="mb-8 text-lg text-gray-600">
+            To start selling, you need to create your online store first.
+          </p>
           <Link
             href="/dashboard/seller/create-store"
-            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            className="inline-flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-lg shadow-lg text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all transform hover:scale-105 active:scale-95"
           >
-            Create Your First Store
+            <FiPlusCircle className="mr-2 -ml-1 h-5 w-5" />
+            Create Your Store
           </Link>
         </div>
       </div>
     );
   }
 
-  return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Seller Dashboard</h1>
-          <p className="text-gray-700 mt-1">Welcome, {user.displayName || user.email}!</p>
-          <p className="text-sm text-gray-500">Managing Store ID: {currentStoreId}</p>
+  if (currentStoreId === 'error') {
+    return (
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12 bg-gradient-to-br from-slate-50 to-red-50 min-h-[calc(100vh-160px)] flex flex-col justify-center items-center">
+        <div className="max-w-md text-center p-8 bg-white shadow-xl rounded-xl">
+          <FiAlertCircle className="text-5xl text-red-500 mx-auto mb-6" />
+          <h1 className="text-3xl font-bold mb-4 text-red-600">
+            Something Went Wrong
+          </h1>
+          <p className="mb-8 text-lg text-gray-600">
+            We encountered an error loading your store information. Please try refreshing the page or contact support if the issue persists.
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            className="inline-flex items-center justify-center px-8 py-3 border border-transparent text-base font-medium rounded-lg shadow-lg text-white bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-400 transition-all transform hover:scale-105 active:scale-95"
+          >
+            Refresh Page
+          </button>
         </div>
-
-        {/* Add this Link component */}
-        <Link
-          href="/dashboard/seller/orders"
-          className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z" />
-          </svg>
-          View Orders
-        </Link>
       </div>
+    );
+  }
+
+  return (
+    <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 bg-gradient-to-br from-slate-50 to-sky-50 min-h-[calc(100vh-160px)]">
+      <header className="mb-8 md:mb-12">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div>
+            <h1 className="text-3xl sm:text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-purple-600">
+              Seller Dashboard
+            </h1>
+            <p className="text-gray-600 mt-1 text-lg">Welcome back, {user.displayName || user.email}!</p>
+            {currentStoreId && <p className="text-sm text-gray-500">Managing Store ID: <span className='font-semibold text-gray-700'>{currentStoreId}</span></p>}
+          </div>
+          <div className="flex gap-3 mt-4 sm:mt-0">
+            <Link
+              href="/dashboard/seller/orders"
+              className="inline-flex items-center justify-center px-5 py-2.5 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all transform hover:scale-105 active:scale-95 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              <FiClipboard className="w-5 h-5 mr-2" />
+              View All Orders
+            </Link>
+          </div>
+        </div>
+      </header>
 
       {infoMessage && (
-        <div className="mb-4 p-3 bg-green-100 text-green-700 rounded-md">
-          {infoMessage}
+        <div className={`mb-6 p-4 rounded-lg shadow-md text-sm flex items-center gap-3 ${infoMessage.type === 'error' ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-green-50 text-green-700 border border-green-200'}`}>
+          {infoMessage.type === 'error' ? <FiAlertCircle className="h-5 w-5" /> : <FiCheckCircle className="h-5 w-5" />}
+          <span>{infoMessage.message}</span>
         </div>
       )}
 
-      {/* Section to Add New Product - Now Collapsible */}
-      <div className="mb-8">
-        <button
-          onClick={() => setIsAddProductFormVisible(!isAddProductFormVisible)}
-          className="flex items-center justify-center w-full px-4 py-2 mb-4 text-lg font-medium text-white bg-green-600 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
-        >
-          {isAddProductFormVisible ? 'Hide Add Product Form' : 'Show Add Product Form'}
-          <svg
-            className={`w-5 h-5 ml-2 transform transition-transform duration-200 ${isAddProductFormVisible ? 'rotate-180' : ''}`}
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-            xmlns="http://www.w3.org/2000/svg"
+      <section className="mb-10 md:mb-12 p-6 bg-white shadow-xl rounded-xl">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-semibold text-gray-800">Manage Your Products</h2>
+          <button
+            onClick={() => setIsAddProductFormVisible(!isAddProductFormVisible)}
+            className="inline-flex items-center justify-center px-5 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600 rounded-lg shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all transform hover:scale-105 active:scale-95"
           >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-          </svg>
-        </button>
+            <FiPlusCircle className="w-5 h-5 mr-2" />
+            {isAddProductFormVisible ? 'Hide Form' : 'Add New Product'}
+          </button>
+        </div>
 
-        {isAddProductFormVisible && currentStoreId && currentStoreId !== 'error' && currentStoreId !== 'no-store' ? (
-          <CreateProductForm
-            onProductCreated={handleProductCreated}
-            storeId={currentStoreId}
-          />
-        ) : isAddProductFormVisible && (
-          <p className="text-orange-500">
-            {currentStoreId === 'error' ? 'Store information is not available. Cannot add products.' :
-             currentStoreId === 'no-store' ? 'Please create a store before adding products.' :
-             'Store information is loading. Cannot add products yet.'}
-          </p>
+        {isAddProductFormVisible && currentStoreId && typeof currentStoreId === 'string' && currentStoreId !== 'no-store' && currentStoreId !== 'error' && user && (
+          <div className="mb-8 p-6 border border-gray-200 rounded-lg bg-slate-50">
+            <CreateProductForm
+              storeId={currentStoreId}
+              onProductCreated={handleProductCreated}
+            />
+          </div>
         )}
-      </div>
 
-      {/* Section: Your Listings */}
-      <div className="bg-white p-6 rounded-lg shadow border border-gray-200 mb-8">
-        <h2 className="text-xl font-semibold text-gray-800 mb-4">Your Listings</h2>
         {isLoadingProducts ? (
-          <p className="text-gray-600">Loading your products...</p>
+          <div className="flex flex-col items-center justify-center py-10">
+            <FiLoader className="animate-spin text-3xl text-blue-500 mb-3" />
+            <p className="text-gray-600">Loading your products...</p>
+          </div>
         ) : products.length > 0 ? (
           <ProductList
             products={products}
@@ -243,107 +245,73 @@ export default function SellerDashboardPage() {
             onDeleteProduct={handleDeleteProduct}
           />
         ) : (
-          <p className="text-gray-600">You haven't listed any products yet. Add one above!</p>
+          <div className="text-center py-10 px-6 bg-gray-50 rounded-lg">
+            <FiPackage className="text-5xl text-gray-400 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-gray-700 mb-2">No Products Yet</h3>
+            <p className="text-gray-500 mb-6">It looks like you haven't added any products to your store. Click the button above to add your first product!</p>
+            {!isAddProductFormVisible && (
+                 <button
+                    onClick={() => setIsAddProductFormVisible(true)}
+                    className="inline-flex items-center justify-center px-5 py-2.5 text-sm font-medium text-white bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600 rounded-lg shadow-md hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all transform hover:scale-105 active:scale-95"
+                >
+                    <FiPlusCircle className="w-5 h-5 mr-2" />
+                    Add Your First Product
+                </button>
+            )}
+          </div>
         )}
-      </div>
+      </section>
 
-      {/* Pending Orders Section */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-8">
-        <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold text-gray-800">Pending Orders</h2>
-            <Link
-              href="/dashboard/seller/orders"
-              className="text-sm text-blue-600 hover:underline"
-            >
-              View All
-            </Link>
+      <section className="p-6 bg-white shadow-xl rounded-xl">
+        <h2 className="text-2xl font-semibold text-gray-800 mb-6">Pending Customer Orders</h2>
+        {isLoadingOrders ? (
+          <div className="flex flex-col items-center justify-center py-10">
+            <FiLoader className="animate-spin text-3xl text-blue-500 mb-3" />
+            <p className="text-gray-600">Loading pending orders...</p>
           </div>
-
-          {isLoadingOrders ? (
-            <p className="text-gray-600">Loading orders...</p>
-          ) : pendingOrders.length > 0 ? (
-            <ul className="space-y-3">
-              {pendingOrders.slice(0, 5).map((order) => (
-                <li key={order.id} className="flex flex-col p-4 bg-gray-50 rounded-lg border border-gray-100">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <p className="font-medium">Order #{order.id}</p>
-                      <p className="text-sm text-gray-500">
-                        {order.buyerName || 'N/A'} • {order.items.length} {order.items.length === 1 ? 'item' : 'items'}
-                      </p>
-                      <p className="text-sm text-gray-500">
-                        {new Date(order.createdAt.seconds * 1000).toLocaleDateString()}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-semibold">${order.totalAmount.toFixed(2)}</p>
-                      <span className={`px-2 py-1 text-xs rounded-full ${order.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                        order.status === 'processing' ? 'bg-blue-100 text-blue-800' :
-                          'bg-gray-100 text-gray-800'
-                        }`}>
-                        {order.status.charAt(0).toUpperCase() + order.status.slice(1)}
-                      </span>
-                    </div>
+        ) : pendingOrders.length > 0 ? (
+          <div className="space-y-4">
+            {pendingOrders.map(order => (
+              <div key={order.id} className="p-4 border border-gray-200 rounded-lg shadow-sm bg-slate-50 hover:shadow-md transition-shadow">
+                <div className="flex flex-col sm:flex-row justify-between sm:items-center">
+                  <div>
+                    <p className="text-sm text-gray-500">Order ID: <span className="font-medium text-gray-700">{order.id}</span></p>
+                    <p className="text-lg font-semibold text-blue-600">Total: ${order.totalAmount.toFixed(2)}</p>
+                    <p className="text-sm text-gray-500">Date: {order.createdAt.toDate().toLocaleDateString()}</p>
+                    <p className="text-sm text-gray-500">Status: <span className="px-2 py-0.5 text-xs font-semibold text-orange-700 bg-orange-100 rounded-full">{order.status}</span></p>
                   </div>
-                  <div className="mt-3 pt-3 border-t border-gray-100">
-                    <div className="flex space-x-2">
-                      <button
-                        onClick={() => handleUpdateOrderStatus(order.id, 'processing')}
-                        className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700 transition-colors"
-                        disabled={order.status !== 'pending'}
+                  <div className="mt-4 sm:mt-0 flex flex-col sm:flex-row gap-2 items-stretch sm:items-center">
+                    <button
+                      onClick={() => handleUpdateOrderStatus(order.id, 'shipped')}
+                      className="inline-flex items-center justify-center px-4 py-2 text-xs font-medium text-white bg-gradient-to-r from-green-500 to-teal-500 hover:from-green-600 hover:to-teal-600 rounded-md shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-green-500 transition-all transform hover:scale-105 active:scale-95"
+                    >
+                      <FiSend className="w-4 h-4 mr-1.5" /> Mark as Shipped
+                    </button>
+                    <button
+                      onClick={() => handleUpdateOrderStatus(order.id, 'completed')}
+                      className="inline-flex items-center justify-center px-4 py-2 text-xs font-medium text-white bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 rounded-md shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-blue-500 transition-all transform hover:scale-105 active:scale-95"
+                    >
+                      <FiCheckCircle className="w-4 h-4 mr-1.5" /> Mark as Completed
+                    </button>
+                     <Link
+                        href={`/dashboard/seller/orders/${order.id}`}
+                        className="inline-flex items-center justify-center px-4 py-2 text-xs font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 border border-gray-300 rounded-md shadow-sm hover:shadow-md focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-indigo-500 transition-all transform hover:scale-105 active:scale-95"
                       >
-                        Mark as Processing
-                      </button>
-                      <button
-                        onClick={() => handleUpdateOrderStatus(order.id, 'cancelled')}
-                        className="px-3 py-1 bg-gray-200 text-gray-800 text-sm rounded hover:bg-gray-300 transition-colors"
-                      >
-                        Cancel Order
-                      </button>
-                    </div>
+                        <FiEye className="w-4 h-4 mr-1.5" /> View Details
+                      </Link>
                   </div>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <div className="text-center py-8">
-              <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-              </svg>
-              <h3 className="mt-2 text-sm font-medium text-gray-900">No pending orders</h3>
-              <p className="mt-1 text-sm text-gray-500">New orders will appear here when customers purchase your products.</p>
-            </div>
-          )}
-        </div>
-
-        {/* Sales Overview - Placeholder for future implementation */}
-        <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-800 mb-4">Sales Overview</h2>
-          <div className="bg-gray-50 p-6 rounded-lg text-center">
-            <svg className="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-            </svg>
-            <h3 className="mt-2 text-sm font-medium text-gray-900">Sales analytics coming soon</h3>
-            <p className="mt-1 text-sm text-gray-500">Track your sales performance and insights</p>
+                </div>
+              </div>
+            ))}
           </div>
-        </div>
-      </div>
-
-      {/* TODO: Add seller-specific content here */}
-      {/* <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Example Section: Pending Orders */}
-      {/* <div className="bg-white p-6 rounded-lg shadow border border-gray-200">
-          <h2 className="text-xl font-semibold text-gray-800 mb-4">Pending Orders</h2>
-          <p className="text-gray-600">Display orders that need processing.</p>
-          {/* Placeholder for pending orders list */}
-      {/* <ul className="mt-4 space-y-2">
-            <li className="text-gray-700">Order #12346 - New</li>
-            <li className="text-gray-700">Order #12347 - Processing</li>
-            {/* ... more orders */}
-      {/* </ul>
-        </div>
-      </div> */}
+        ) : (
+          <div className="text-center py-10 px-6 bg-gray-50 rounded-lg">
+            <FiArchive className="text-5xl text-gray-400 mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-gray-700 mb-2">No Pending Orders</h3>
+            <p className="text-gray-500">You currently have no orders awaiting action.</p>
+          </div>
+        )}
+      </section>
     </div>
   );
 }

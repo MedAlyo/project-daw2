@@ -26,7 +26,6 @@ export default function BuyerOrdersPage() {
     }
   }, [user, loading, router]);
   
-  // fetch buyer's orders
   useEffect(() => {
     const fetchOrders = async () => {
       if (user && user.role === 'buyer') {

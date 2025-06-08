@@ -7,31 +7,28 @@ import {
   createUserWithEmailAndPassword,
   sendEmailVerification as firebaseSendEmailVerification,
   updateProfile,
-  signOut // Import signOut
+  signOut
 } from 'firebase/auth';
 import { auth } from '@/lib/firebase/config';
-import { createUserProfile } from '@/lib/firebase/firestoreActions'; // Import createUserProfile
+import { createUserProfile } from '@/lib/firebase/firestoreActions';
+import { FiUserPlus, FiLogIn, FiUser, FiMail, FiLock, FiEye, FiEyeOff, FiBriefcase, FiShoppingCart } from 'react-icons/fi';
 
-/**
- * Register page component with monochromatic styling.
- * Allows user to choose role (Buyer/Seller) during registration.
- * After registration, user is signed out and redirected to login.
- */
 export default function RegisterPage() {
   const [username, setUsername] = useState<string>('');
   const [email, setEmail] = useState<string>('');
   const [password, setPassword] = useState<string>('');
   const [confirmPassword, setConfirmPassword] = useState<string>('');
-  const [role, setRole] = useState<'buyer' | 'seller'>('buyer'); // Add state for role, default to buyer
+  const [role, setRole] = useState<'buyer' | 'seller'>('buyer');
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [showPassword, setShowPassword] = useState<boolean>(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState<boolean>(false);
   const router = useRouter();
 
   const handleRegister = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError(null);
 
-    // --- Validations ---
     if (!username.trim()) {
       setError("Username is required.");
       return;
@@ -44,61 +41,52 @@ export default function RegisterPage() {
        setError("Password should be at least 6 characters long.");
        return;
     }
-    // --- End Validations ---
 
     setIsLoading(true);
 
     try {
-      // Create the user with email and password using Firebase Auth
       const userCredential = await createUserWithEmailAndPassword(auth, email, password);
 
       if (userCredential.user) {
         const firebaseUser = userCredential.user;
 
-        // Update the user's profile with the displayName (username) in Firebase Auth
         await updateProfile(firebaseUser, {
           displayName: username,
         });
 
-        // Create a user profile document in Firestore with the chosen role
-        await createUserProfile(firebaseUser.uid, username, role); // Call createUserProfile
-
-        // Send the email verification link
+        await createUserProfile(firebaseUser.uid, username, role);
         await firebaseSendEmailVerification(firebaseUser);
+        await signOut(auth); // Sign out the user so they have to log in and verify email
 
-        // IMPORTANT: Sign the user out after registration and sending verification
-        await signOut(auth);
-
-        // Redirect to the login page with a status message
         router.push('/account/login?status=registered');
       } else {
-        // Fallback if user object is not available, though unlikely after successful creation
         setError('User creation failed unexpectedly. Please try again.');
-        setIsLoading(false); // Ensure loading state is reset
       }
     } catch (err: any) {
       console.error("Registration Error:", err);
       if (err.code === 'auth/email-already-in-use') {
-        setError('This email address is already registered.');
+        setError('This email address is already in use. Please try another.');
       } else if (err.code === 'auth/weak-password') {
-        setError('Password should be at least 6 characters long.');
+        setError('Password is too weak. It should be at least 6 characters long.');
       } else {
-        setError(err.message || 'Failed to register. Please try again.');
+        setError(err.message || 'Failed to register. Please check your details and try again.');
       }
-      setIsLoading(false); // Reset loading state on error
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)] px-4">
-      <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg border border-gray-200">
-        <h1 className="text-2xl font-semibold text-center text-gray-900">Create Account</h1>
+    <div className="min-h-screen bg-gradient-to-br from-slate-100 to-blue-50 flex flex-col items-center justify-center p-4 selection:bg-purple-500 selection:text-white">
+      <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-xl shadow-xl border border-gray-200">
+        <div className="text-center">
+          <FiUserPlus className="mx-auto text-5xl text-blue-600 mb-4" />
+          <h1 className="text-3xl font-bold text-gray-800 mb-2">Create Your Account</h1>
+          <p className="text-gray-600">Join LocaShop today!</p>
+        </div>
         <form onSubmit={handleRegister} className="space-y-5">
-          {/* Username Input */}
-          <div>
-            <label htmlFor="username" className="block text-sm font-medium text-gray-700 mb-1">
-              Username
-            </label>
+          <div className="relative">
+            <FiUser className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
               type="text"
               id="username"
@@ -106,16 +94,13 @@ export default function RegisterPage() {
               required
               value={username}
               onChange={(e) => setUsername(e.target.value)}
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm disabled:opacity-70"
+              className="pl-10 pr-4 py-3 block w-full bg-white text-gray-700 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition duration-150 ease-in-out disabled:opacity-70"
               disabled={isLoading}
-              placeholder="Choose a username"
+              placeholder="Username"
             />
           </div>
-          {/* Email Input */}
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-              Email Address
-            </label>
+          <div className="relative">
+            <FiMail className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
               type="email"
               id="email"
@@ -123,104 +108,113 @@ export default function RegisterPage() {
               required
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm disabled:opacity-70"
+              className="pl-10 pr-4 py-3 block w-full bg-white text-gray-700 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition duration-150 ease-in-out disabled:opacity-70"
               disabled={isLoading}
-              placeholder="you@example.com"
+              placeholder="Email Address"
             />
           </div>
-          {/* Password Input */}
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-              Password
-            </label>
+          <div className="relative">
+            <FiLock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
-              type="password"
+              type={showPassword ? "text" : "password"}
               id="password"
               name="password"
               required
               minLength={6}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm disabled:opacity-70"
+              className="pl-10 pr-10 py-3 block w-full bg-white text-gray-700 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition duration-150 ease-in-out disabled:opacity-70"
               disabled={isLoading}
-              placeholder="Minimum 6 characters"
+              placeholder="Password"
             />
+            <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-blue-500">
+              {showPassword ? <FiEyeOff /> : <FiEye />}
+            </button>
           </div>
-          {/* Confirm Password Input */}
-          <div>
-            <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">
-              Confirm Password
-            </label>
+          <div className="relative">
+            <FiLock className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
             <input
-              type="password"
+              type={showConfirmPassword ? "text" : "password"}
               id="confirmPassword"
               name="confirmPassword"
               required
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm disabled:opacity-70"
+              className="pl-10 pr-10 py-3 block w-full bg-white text-gray-700 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 sm:text-sm transition duration-150 ease-in-out disabled:opacity-70"
               disabled={isLoading}
-              placeholder="••••••••"
+              placeholder="Confirm Password"
             />
+            <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-blue-500">
+              {showConfirmPassword ? <FiEyeOff /> : <FiEye />}
+            </button>
           </div>
 
-          {/* Role Selection */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              Register as:
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              I want to register as a:
             </label>
-            <div className="mt-1 flex items-center space-x-4">
-              <div className="flex items-center">
-                <input
-                  id="role-buyer"
-                  name="role"
-                  type="radio"
-                  value="buyer"
-                  checked={role === 'buyer'}
-                  onChange={() => setRole('buyer')}
-                  disabled={isLoading}
-                  className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300"
-                />
-                <label htmlFor="role-buyer" className="ml-2 block text-sm text-gray-900">
-                  Buyer
-                </label>
-              </div>
-              <div className="flex items-center">
-                <input
-                  id="role-seller"
-                  name="role"
-                  type="radio"
-                  value="seller"
-                  checked={role === 'seller'}
-                  onChange={() => setRole('seller')}
-                   disabled={isLoading}
-                  className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300"
-                />
-                <label htmlFor="role-seller" className="ml-2 block text-sm text-gray-900">
-                  Seller
-                </label>
-              </div>
+            <div className="mt-1 grid grid-cols-2 gap-3">
+              {[ 
+                { id: 'buyer', label: 'Buyer', icon: <FiShoppingCart className="mr-2"/> },
+                { id: 'seller', label: 'Seller', icon: <FiBriefcase className="mr-2"/> }
+              ].map((item) => (
+                <div
+                  key={item.id}
+                  onClick={() => !isLoading && setRole(item.id as 'buyer' | 'seller')}
+                  className={`flex items-center justify-center p-3 border rounded-lg cursor-pointer transition-all duration-150 ease-in-out 
+                    ${role === item.id 
+                      ? 'bg-blue-600 text-white ring-2 ring-blue-400 border-blue-500 shadow-md'
+                      : 'bg-gray-50 hover:bg-gray-100 text-gray-700 border-gray-300 hover:border-blue-400'
+                    }`}
+                >
+                  <input
+                    id={`role-${item.id}`}
+                    name="role"
+                    type="radio"
+                    value={item.id}
+                    checked={role === item.id}
+                    onChange={() => setRole(item.id as 'buyer' | 'seller')}
+                    disabled={isLoading}
+                    className="opacity-0 w-0 h-0 absolute"
+                  />
+                  {item.icon}
+                  <label htmlFor={`role-${item.id}`} className="text-sm font-medium cursor-pointer select-none">
+                    {item.label}
+                  </label>
+                </div>
+              ))}
             </div>
           </div>
 
           {error && (
-            <p className="text-red-600 text-sm text-center">{error}</p>
+            <p className="text-red-600 text-sm text-center font-medium bg-red-50 p-3 rounded-lg border border-red-300">{error}</p>
           )}
 
           <div>
             <button
               type="submit"
               disabled={isLoading}
-              className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+              className="w-full flex items-center justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-slate-50 focus:ring-blue-500 disabled:opacity-60 transition duration-150 ease-in-out group"
             >
-              {isLoading ? 'Registering...' : 'Register'}
+              {isLoading ? (
+                <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+              ) : (
+                <>
+                  <FiUserPlus className="mr-2 h-5 w-5 transition-transform duration-150 ease-in-out group-hover:scale-110" />
+                  Create Account
+                </>
+              )}
             </button>
           </div>
         </form>
-        <p className="mt-6 text-center text-sm text-gray-600">
+        <p className="mt-6 text-center text-sm text-gray-500">
           Already have an account?{' '}
-          <Link href="/account/login" className="font-medium text-blue-600 hover:text-blue-500">
-            Login here
+          <Link href="/account/login" className="font-medium text-blue-600 hover:text-purple-700 hover:underline">
+            <FiLogIn className="inline mr-1 mb-0.5" />
+            Sign In
           </Link>
         </p>
       </div>
