@@ -4,7 +4,6 @@ import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
-// Fix for default markers in react-leaflet
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
@@ -48,7 +47,6 @@ export default function LocationPicker({ latitude = 40.7128, longitude = -74.006
   const handleLocationChange = async (lat: number, lng: number) => {
     setCurrentPosition([lat, lng]);
     
-    // Reverse geocoding to get address
     try {
       const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`);
       const data = await response.json();

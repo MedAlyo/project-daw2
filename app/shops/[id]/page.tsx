@@ -19,21 +19,19 @@ export default function StoreDetailPage() {
   useEffect(() => {
     const fetchStoreData = async () => {
       try {
-        console.log('Fetching store data for ID:', storeId); // Add this
+        console.log('Fetching store data for ID:', storeId);
         setIsLoading(true);
 
-        // Fetch store details
         const storeData = await getStoreById(storeId);
-        console.log('Store data received:', storeData); // Add this
+        console.log('Store data received:', storeData);
         if (!storeData) {
           setError('Store not found');
           return;
         }
         setStore(storeData);
 
-        // Fetch store products
         const storeProducts = await getProductsByStoreId(storeId);
-        console.log('Products received:', storeProducts); // Add this
+        console.log('Products received:', storeProducts);
         setProducts(storeProducts);
 
       } catch (err) {
@@ -47,7 +45,7 @@ export default function StoreDetailPage() {
     if (storeId) {
       fetchStoreData();
     } else {
-      console.log('No store ID provided'); // Add this
+      console.log('No store ID provided');
     }
   }, [storeId]);
 

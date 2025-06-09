@@ -19,7 +19,7 @@ export default function EditProductPage() {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [price, setPrice] = useState('');
-  const [stockQuantity, setStockQuantity] = useState(''); // Renamed from stock to stockQuantity
+  const [stockQuantity, setStockQuantity] = useState('');
   const [status, setStatus] = useState<'active' | 'draft'>('draft');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -53,7 +53,7 @@ export default function EditProductPage() {
               setName(fetchedProduct.name);
               setDescription(fetchedProduct.description);
               setPrice(fetchedProduct.price.toString());
-              setStockQuantity(fetchedProduct.stockQuantity.toString()); // Changed from fetchedProduct.stock
+              setStockQuantity(fetchedProduct.stockQuantity.toString());
               setStatus(fetchedProduct.status);
             }
           } else {
@@ -81,13 +81,13 @@ export default function EditProductPage() {
     }
 
     // Basic Validation
-    if (!name.trim() || !description.trim() || !price.trim() || !stockQuantity.trim()) { // Changed from stock.trim()
+    if (!name.trim() || !description.trim() || !price.trim() || !stockQuantity.trim()) {
       setError('All fields except image are required.');
       console.error('Update failed: Validation error - missing fields.');
       return;
     }
     const numericPrice = parseFloat(price);
-    const numericStock = parseInt(stockQuantity, 10); // Changed from stock
+    const numericStock = parseInt(stockQuantity, 10);
     if (isNaN(numericPrice) || numericPrice <= 0) {
       setError('Price must be a positive number.');
       console.error('Update failed: Validation error - invalid price.');
@@ -95,7 +95,7 @@ export default function EditProductPage() {
     }
     if (isNaN(numericStock) || numericStock < 0) {
       setError('Stock must be a non-negative number.');
-      console.error('Update failed: Validation error - invalid stock.'); // Consider changing log message too
+      console.error('Update failed: Validation error - invalid stock.');
       return;
     }
 
@@ -103,7 +103,6 @@ export default function EditProductPage() {
     try {
       let imageUrl = product.images?.[0] || '';
       
-      // Upload new image if provided
       if (imageFile) {
         setIsUploadingImage(true);
         const storage = getStorage();
@@ -117,7 +116,7 @@ export default function EditProductPage() {
         name: name.trim(),
         description: description.trim(),
         price: numericPrice,
-        stockQuantity: numericStock, // Changed from stock
+        stockQuantity: numericStock,
         status,
         images: imageUrl ? [imageUrl] : product.images || [],
       };
@@ -126,13 +125,12 @@ export default function EditProductPage() {
       await updateProduct(productId, productDataToUpdate);
       setSuccessMessage('Product updated successfully!');
       console.log('Product updated successfully:', productId);
-      // Update local product state with the new data, using Timestamp.now() for updatedAt
       setProduct(prev => 
         prev 
           ? { 
               ...prev, 
               ...productDataToUpdate, 
-              updatedAt: Timestamp.now() // Corrected: Use Timestamp.now()
+              updatedAt: Timestamp.now()
             } 
           : null
       );

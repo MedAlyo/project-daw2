@@ -15,7 +15,7 @@ function ResetPasswordForm() {
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [isValidCode, setIsValidCode] = useState<boolean | null>(null); // null: checking, true: valid, false: invalid
+  const [isValidCode, setIsValidCode] = useState<boolean | null>(null);
   const [userEmail, setUserEmail] = useState<string | null>(null);
 
   useEffect(() => {
@@ -65,7 +65,6 @@ function ResetPasswordForm() {
     try {
       await resetUserPassword(oobCode, newPassword);
       setMessage('Your password has been successfully reset. You can now login with your new password.');
-      // Optionally redirect to login after a delay
       setTimeout(() => router.push('/account/login'), 3000);
     } catch (err: any) {
       console.error("Reset Password Error:", err);
@@ -83,7 +82,7 @@ function ResetPasswordForm() {
     );
   }
 
-  if (!isValidCode && !isLoading) { // Show error if code is invalid and not loading
+  if (!isValidCode && !isLoading) {
      return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)] px-4">
         <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg border border-gray-200 text-center">
@@ -167,7 +166,6 @@ function ResetPasswordForm() {
   );
 }
 
-// Wrap with Suspense for useSearchParams
 export default function ResetPasswordPage() {
   return (
     <Suspense fallback={<div>Loading...</div>}>

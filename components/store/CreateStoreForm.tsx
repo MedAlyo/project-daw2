@@ -4,12 +4,11 @@ import { useState, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { createStore } from '@/lib/firebase/firestoreActions';
-import { geocodeAddress } from '@/lib/utils/location'; // Add this import
+import { geocodeAddress } from '@/lib/utils/location';
 import { Timestamp } from 'firebase/firestore';
 import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { v4 as uuidv4 } from 'uuid';
 
-// Initialize Firebase Storage
 const storage = getStorage();
 
 interface StoreFormData {
@@ -88,7 +87,6 @@ export default function CreateStoreForm() {
     try {
       setIsUploading(true);
       
-      // Geocode the address to get real coordinates
       const fullAddress = `${formData.address}, ${formData.city}, ${formData.country} ${formData.postalCode}`;
       const coordinates = await geocodeAddress(fullAddress);
       
@@ -102,14 +100,12 @@ export default function CreateStoreForm() {
       let logoUrl = '';
       let bannerUrl = '';
 
-      // Upload logo if provided
       if (logoFile) {
         const logoRef = ref(storage, `stores/${user.uid}/logo-${crypto.randomUUID()}`);
         await uploadBytes(logoRef, logoFile);
         logoUrl = await getDownloadURL(logoRef);
       }
 
-      // Upload banner if provided
       if (bannerFile) {
         const bannerRef = ref(storage, `stores/${user.uid}/banner-${crypto.randomUUID()}`);
         await uploadBytes(bannerRef, bannerFile);
@@ -127,7 +123,7 @@ export default function CreateStoreForm() {
         phone: formData.phone,
         email: formData.email,
         categories: formData.categories.split(',').map(cat => cat.trim()),
-        location: coordinates, // Use real coordinates
+        location: coordinates,
         logoUrl,
         bannerUrl,
         createdAt: Timestamp.now(),
@@ -157,7 +153,6 @@ export default function CreateStoreForm() {
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Store Name */}
           <div className="col-span-2">
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Store Name <span className="text-red-500">*</span>
@@ -172,7 +167,6 @@ export default function CreateStoreForm() {
             />
           </div>
 
-          {/* Description */}
           <div className="col-span-2">
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Description
@@ -186,7 +180,6 @@ export default function CreateStoreForm() {
             />
           </div>
 
-          {/* Logo Upload */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Store Logo
@@ -209,7 +202,6 @@ export default function CreateStoreForm() {
             )}
           </div>
 
-          {/* Banner Upload */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Store Banner
@@ -232,7 +224,6 @@ export default function CreateStoreForm() {
             )}
           </div>
 
-          {/* Address */}
           <div className="col-span-2">
             <h3 className="text-lg font-medium text-gray-900 mb-3">Store Address</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -293,7 +284,6 @@ export default function CreateStoreForm() {
             </div>
           </div>
 
-          {/* Contact Information */}
           <div className="col-span-2">
             <h3 className="text-lg font-medium text-gray-900 mb-3">Contact Information</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -326,7 +316,6 @@ export default function CreateStoreForm() {
             </div>
           </div>
 
-          {/* Categories */}
           <div className="col-span-2">
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Categories (comma separated)

@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
-import { getOrderById, Order, ShippingAddress } from '@/lib/firebase/firestoreActions';
+import { getOrderById, Order } from '@/lib/firebase/firestoreActions';
 import Link from 'next/link';
 import { OrderStatusBadge } from '@/components/orders/OrderStatusBadge';
 
@@ -17,7 +17,6 @@ export default function OrderDetailPage() {
   const [orderLoading, setOrderLoading] = useState(true);
   const [orderError, setOrderError] = useState<string | null>(null);
   
-  // protect the route
   useEffect(() => {
     if (!loading) {
       if (!user) {
@@ -28,7 +27,6 @@ export default function OrderDetailPage() {
     }
   }, [user, loading, router]);
   
-  // fetch order details
   useEffect(() => {
     const fetchOrder = async () => {
       if (user && user.role === 'buyer' && orderId) {
@@ -80,7 +78,6 @@ export default function OrderDetailPage() {
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="max-w-4xl mx-auto">
-        {/* header */}
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>
@@ -100,9 +97,7 @@ export default function OrderDetailPage() {
         </div>
         
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* order details */}
           <div className="lg:col-span-2 space-y-6">
-            {/* order status */}
             <div className="bg-white p-6 rounded-lg shadow border">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-xl font-semibold">Order Status</h2>
@@ -151,7 +146,6 @@ export default function OrderDetailPage() {
               </div>
             </div>
             
-            {/* order items */}
             <div className="bg-white p-6 rounded-lg shadow border">
               <h2 className="text-xl font-semibold mb-4">Order Items</h2>
               
@@ -179,9 +173,7 @@ export default function OrderDetailPage() {
             </div>
           </div>
           
-          {/* sidebar */}
           <div className="space-y-6">
-            {/* shipping address */}
             <div className="bg-white p-6 rounded-lg shadow border">
               <h3 className="text-lg font-semibold mb-3">Shipping Address</h3>
               <div className="text-gray-700 space-y-1">
@@ -202,7 +194,6 @@ export default function OrderDetailPage() {
               </div>
             </div>
             
-            {/* order summary */}
             <div className="bg-white p-6 rounded-lg shadow border">
               <h3 className="text-lg font-semibold mb-3">Order Summary</h3>
               <div className="space-y-2 text-sm">
@@ -227,7 +218,6 @@ export default function OrderDetailPage() {
               </div>
             </div>
             
-            {/* actions */}
             <div className="bg-white p-6 rounded-lg shadow border">
               <h3 className="text-lg font-semibold mb-3">Actions</h3>
               <div className="space-y-3">

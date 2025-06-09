@@ -48,7 +48,6 @@ export default function ProductDetailPage() {
       for (let i = 0; i < quantity; i++) {
         addItem(product);
       }
-      // reset quantity after adding
       setQuantity(1);
     }
   };
@@ -101,8 +100,8 @@ export default function ProductDetailPage() {
                 src={images[selectedImageIndex]}
                 alt={product.name}
                 layout="fill"
-                objectFit="contain" // Changed to contain for better visibility of whole product
-                priority // Prioritize loading of the main image
+                objectFit="contain" 
+                priority 
               />
             </div>
 

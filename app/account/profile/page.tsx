@@ -18,7 +18,7 @@ export default function ProfilePage() {
   const [newPassword, setNewPassword] = useState('');
   const [shopName, setShopName] = useState('');
   const [shopLocation, setShopLocation] = useState('');
-  const [shopLatitude, setShopLatitude] = useState<number>(40.7128); // Default to NYC
+  const [shopLatitude, setShopLatitude] = useState<number>(40.7128);
   const [shopLongitude, setShopLongitude] = useState<number>(-74.0060);
   const [storeId, setStoreId] = useState<string | null>(null);
   const [feedbackMessage, setFeedbackMessage] = useState('');
@@ -34,7 +34,7 @@ export default function ProfilePage() {
           const storeData = await getStoreBySellerId(user.uid);
           if (storeData) {
             setShopName(storeData.name || '');
-            setShopLocation(storeData.address || ''); // Changed from storeData.location
+            setShopLocation(storeData.address || '');
             setShopLatitude(storeData.latitude || 40.7128);
             setShopLongitude(storeData.longitude || -74.0060);
             setStoreId(storeData.id);
@@ -216,7 +216,7 @@ export default function ProfilePage() {
                     <input
                       type="text"
                       value={shopLocation}
-                      onChange={(e) => setShopLocation(e.target.value)} // Allow manual edit if needed
+                      onChange={(e) => setShopLocation(e.target.value)}
                       className="mt-1 block w-full px-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm placeholder-gray-400"
                       placeholder="Address (auto-filled from map or enter manually)"
                       required

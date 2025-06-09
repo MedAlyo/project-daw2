@@ -2,7 +2,7 @@
 
 import React, { useState, FormEvent } from 'react';
 import Link from 'next/link';
-import { sendPasswordReset } from '@/lib/firebase/authActions'; // Import the action
+import { sendPasswordReset } from '@/lib/firebase/authActions';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState<string>('');
@@ -19,7 +19,7 @@ export default function ForgotPasswordPage() {
     try {
       await sendPasswordReset(email);
       setMessage('Password reset email sent. Please check your inbox (and spam folder).');
-      setEmail(''); // Clear email field on success
+      setEmail('');
     } catch (err: any) {
       console.error("Forgot Password Error:", err);
       setError(err.message || 'Failed to send password reset email. Please try again.');

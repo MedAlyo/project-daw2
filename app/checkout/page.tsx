@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useCart } from '@/context/CartContext';
 import { useAuth } from '@/context/AuthContext';
-import { createOrder, updateProductStock, ShippingAddress, OrderCreateData } from '@/lib/firebase/firestoreActions';
+import { createOrder, ShippingAddress, OrderCreateData } from '@/lib/firebase/firestoreActions';
 import Image from 'next/image';
 import Link from 'next/link';
 import { FiShoppingCart, FiMapPin, FiCreditCard, FiChevronDown, FiChevronUp, FiAlertCircle, FiCheckCircle, FiLoader, FiSave, FiTrash2, FiPlusCircle } from 'react-icons/fi';
@@ -488,7 +488,6 @@ export default function CheckoutPage() {
             </div>
           </div>
 
-          {/* Order Summary Section */}
           <div className="md:col-span-1">
             <div className="bg-white backdrop-blur-md p-6 rounded-xl shadow-xl border border-gray-700 sticky top-20">
               <h2 className="text-2xl font-semibold mb-6 text-purple-400 flex items-center">

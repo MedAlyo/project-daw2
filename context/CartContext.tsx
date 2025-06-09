@@ -3,27 +3,23 @@
 import React, { createContext, useContext, useReducer, ReactNode } from 'react';
 import { Product } from '@/lib/firebase/firestoreActions';
 
-// cart item interface
 interface CartItem {
   product: Product;
   quantity: number;
 }
 
-// cart state interface
 interface CartState {
   items: CartItem[];
   total: number;
   itemCount: number;
 }
 
-// cart actions
 type CartAction =
   | { type: 'ADD_ITEM'; payload: Product }
   | { type: 'REMOVE_ITEM'; payload: string }
   | { type: 'UPDATE_QUANTITY'; payload: { productId: string; quantity: number } }
   | { type: 'CLEAR_CART' };
 
-// cart context type
 interface CartContextType {
   state: CartState;
   addItem: (product: Product) => void;
@@ -32,21 +28,18 @@ interface CartContextType {
   clearCart: () => void;
 }
 
-// initial cart state
 const initialState: CartState = {
   items: [],
   total: 0,
   itemCount: 0,
 };
 
-// cart reducer
 function cartReducer(state: CartState, action: CartAction): CartState {
   switch (action.type) {
     case 'ADD_ITEM': {
       const existingItem = state.items.find(item => item.product.id === action.payload.id);
       
       if (existingItem) {
-        // if item exists, increase quantity
         const updatedItems = state.items.map(item =>
           item.product.id === action.payload.id
             ? { ...item, quantity: item.quantity + 1 }
@@ -60,7 +53,6 @@ function cartReducer(state: CartState, action: CartAction): CartState {
           itemCount: calculateItemCount(updatedItems),
         };
       } else {
-        // if item doesn't exist, add new item
         const newItems = [...state.items, { product: action.payload, quantity: 1 }];
         
         return {
@@ -85,7 +77,6 @@ function cartReducer(state: CartState, action: CartAction): CartState {
     
     case 'UPDATE_QUANTITY': {
       if (action.payload.quantity <= 0) {
-        // if quantity is 0 or less, remove item
         const updatedItems = state.items.filter(item => item.product.id !== action.payload.productId);
         
         return {
@@ -119,7 +110,6 @@ function cartReducer(state: CartState, action: CartAction): CartState {
   }
 }
 
-// helper functions
 function calculateTotal(items: CartItem[]): number {
   return items.reduce((total, item) => total + (item.product.price * item.quantity), 0);
 }
@@ -128,10 +118,8 @@ function calculateItemCount(items: CartItem[]): number {
   return items.reduce((count, item) => count + item.quantity, 0);
 }
 
-// create context
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
-// cart provider component
 export const CartProvider = ({ children }: { children: ReactNode }) => {
   const [state, dispatch] = useReducer(cartReducer, initialState);
   
@@ -164,7 +152,6 @@ export const CartProvider = ({ children }: { children: ReactNode }) => {
   );
 };
 
-// custom hook to use cart context
 export const useCart = () => {
   const context = useContext(CartContext);
   if (context === undefined) {

@@ -56,7 +56,7 @@ export default function RegisterPage() {
 
         await createUserProfile(firebaseUser.uid, username, role);
         await firebaseSendEmailVerification(firebaseUser);
-        await signOut(auth); // Sign out the user so they have to log in and verify email
+        await signOut(auth);
 
         router.push('/account/login?status=registered');
       } else {

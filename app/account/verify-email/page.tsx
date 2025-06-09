@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 import { sendVerificationEmail } from '@/lib/firebase/authActions';
-import { auth } from '@/lib/firebase/config'; // For reload
+import { auth } from '@/lib/firebase/config';
 
 export default function VerifyEmailPage() {
   const { user, loading } = useAuth();
@@ -15,11 +15,9 @@ export default function VerifyEmailPage() {
   const [isResending, setIsResending] = useState<boolean>(false);
 
   useEffect(() => {
-    // If user is loaded and email is verified, redirect to home or account page
     if (!loading && user && user.emailVerified) {
-      router.push('/'); // Or '/account/profile'
+      router.push('/');
     }
-    // If user is loaded but not logged in, redirect to login
     if (!loading && !user) {
       router.push('/account/login');
     }
@@ -44,15 +42,14 @@ export default function VerifyEmailPage() {
     }
   };
 
-  // Check email verification status periodically or provide a manual check button
   const handleCheckVerification = async () => {
     if (auth.currentUser) {
-      setIsLoading(true); // Use a general loading state or a specific one
+      setIsLoading(true);
       try {
-        await auth.currentUser.reload(); // Reload user data from Firebase
+        await auth.currentUser.reload();
         if (auth.currentUser.emailVerified) {
           setMessage('Email successfully verified! Redirecting...');
-          router.push('/'); // Or to a profile page
+          router.push('/');
         } else {
           setError('Email not yet verified. Please check your email or try resending.');
         }
@@ -64,7 +61,7 @@ export default function VerifyEmailPage() {
       }
     }
   };
-  const [isLoading, setIsLoading] = useState(false); // For the manual check button
+  const [isLoading, setIsLoading] = useState(false);
 
   if (loading) {
     return (
@@ -75,7 +72,6 @@ export default function VerifyEmailPage() {
   }
 
   if (!user) {
-     // This case should ideally be handled by the useEffect redirect, but as a fallback:
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)] px-4">
         <p className="text-gray-700">Please login to verify your email.</p>
@@ -87,7 +83,6 @@ export default function VerifyEmailPage() {
   }
 
   if (user && user.emailVerified) {
-    // This case should also be handled by useEffect, but as a fallback:
     return (
       <div className="flex flex-col items-center justify-center min-h-[calc(100vh-200px)] px-4">
         <p className="text-green-600">Your email is already verified!</p>

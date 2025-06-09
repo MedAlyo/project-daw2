@@ -45,10 +45,10 @@ export default function SellerOrdersPage() {
         const firestoreOrders = await getOrdersBySeller(user.uid);
         const pageOrders = firestoreOrders.map(o => ({
           ...o,
-          buyerId: o.userId, // Assuming buyerId in PageOrder maps to userId in FirestoreOrder
-          buyerName: o.shippingAddress.name, // Or another source for buyerName if available
+          buyerId: o.userId,
+          buyerName: o.shippingAddress.name,
           total: o.totalAmount, 
-          items: o.items.map(item => ({ // Ensure items are correctly mapped
+          items: o.items.map(item => ({
             productId: item.productId,
             productName: item.productName,
             price: item.price,
@@ -56,7 +56,7 @@ export default function SellerOrdersPage() {
           })),
           shippingAddress: {
             name: o.shippingAddress.name,
-            address: o.shippingAddress.addressLine1, // Map addressLine1 to address
+            address: o.shippingAddress.addressLine1,
             city: o.shippingAddress.city,
             postalCode: o.shippingAddress.postalCode,
             country: o.shippingAddress.country,

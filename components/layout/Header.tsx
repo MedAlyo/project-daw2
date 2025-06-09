@@ -8,9 +8,6 @@ import CartIcon from '@/components/cart/CartIcon';
 import { useAuth } from '@/context/AuthContext';
 import { auth } from '@/lib/firebase/config';
 
-/**
- * Header component using a monochromatic theme with a blue accent.
- */
 const Header: React.FC = () => {
   const { user, loading } = useAuth();
   const router = useRouter();

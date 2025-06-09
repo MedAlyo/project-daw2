@@ -1,36 +1,30 @@
-// lib/firebase/authActions.ts
 import {
-  getAuth, // Not needed here if auth instance is passed or imported
   sendPasswordResetEmail,
   sendEmailVerification,
   verifyPasswordResetCode,
   confirmPasswordReset,
   User,
-  updatePassword // <-- Import updatePassword
-} from 'firebase/auth'; // Direct import from firebase/auth
-import { auth } from '@/lib/firebase/config'; // Import your initialized auth instance
+  updatePassword 
+} from 'firebase/auth'; 
+import { auth } from '@/lib/firebase/config';
 
 /**
- * Sends a password reset email to the given email address.
- * @param email The user's email address.
- * @returns Promise<void>
+ * @param email 
+ * @returns
  */
 export const sendPasswordReset = async (email: string): Promise<void> => {
   try {
     await sendPasswordResetEmail(auth, email);
-    // You might want to add logging or success handling here
     console.log('Password reset email sent to:', email);
   } catch (error) {
     console.error('Error sending password reset email:', error);
-    throw error; // Re-throw to be caught by the calling component
+    throw error; 
   }
 };
 
 /**
- * Sends an email verification link to the currently signed-in user.
- * Assumes the user is already signed in.
- * @param user The Firebase user object.
- * @returns Promise<void>
+ * @param user
+ * @returns
  */
 export const sendVerificationEmail = async (user: User | null): Promise<void> => {
   if (!user) {
@@ -46,9 +40,8 @@ export const sendVerificationEmail = async (user: User | null): Promise<void> =>
 };
 
 /**
- * Verifies the password reset code from the email link.
- * @param oobCode The out-of-band code from the URL.
- * @returns Promise<string> The email of the user if the code is valid.
+ * @param oobCode
+ * @returns
  */
 export const verifyResetCode = async (oobCode: string): Promise<string> => {
   try {
@@ -62,10 +55,9 @@ export const verifyResetCode = async (oobCode: string): Promise<string> => {
 };
 
 /**
- * Completes the password reset process with a new password.
- * @param oobCode The out-of-band code from the URL.
- * @param newPassword The new password.
- * @returns Promise<void>
+ * @param oobCode
+ * @param newPassword
+ * @returns
  */
 export const resetUserPassword = async (oobCode: string, newPassword: string): Promise<void> => {
   try {
@@ -78,9 +70,8 @@ export const resetUserPassword = async (oobCode: string, newPassword: string): P
 };
 
 /**
- * Updates the password for the currently signed-in user.
- * @param newPassword The new password.
- * @returns Promise<void>
+ * @param newPassword
+ * @returns
  */
 export const updateUserPassword = async (newPassword: string): Promise<void> => {
   const user = auth.currentUser;
@@ -95,7 +86,3 @@ export const updateUserPassword = async (newPassword: string): Promise<void> => 
     throw error;
   }
 };
-
-// Note: 2FA with email is more complex and not a standard Firebase Auth feature for email/password.
-// It typically involves generating a one-time code, sending it via a separate email mechanism (e.g., Firebase Functions + SendGrid),
-// and then verifying it. We'll create a placeholder page for now.

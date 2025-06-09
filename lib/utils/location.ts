@@ -1,4 +1,3 @@
-// Create new utility file for location services
 export const getUserLocation = (): Promise<{lat: number, lng: number}> => {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
@@ -18,8 +17,7 @@ export const getUserLocation = (): Promise<{lat: number, lng: number}> => {
 };
 
 export const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2: number): number => {
-  // Haversine formula for distance calculation
-  const R = 6371; // Earth's radius in km
+  const R = 6371;
   const dLat = (lat2 - lat1) * Math.PI / 180;
   const dLng = (lng2 - lng1) * Math.PI / 180;
   const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
@@ -29,12 +27,6 @@ export const calculateDistance = (lat1: number, lng1: number, lat2: number, lng2
   return R * c;
 };
 
-// Add geocoding function
-/**
- * Geocodes an address to get latitude and longitude coordinates.
- * @param address The full address string to geocode.
- * @returns A promise that resolves to coordinates or null if geocoding fails.
- */
 export const geocodeAddress = async (address: string): Promise<{ lat: number; lng: number } | null> => {
   try {
     const encodedAddress = encodeURIComponent(address);

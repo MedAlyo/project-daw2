@@ -3,7 +3,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { getOrderById, Order as FirestoreOrder } from '@/lib/firebase/firestoreActions';
-import { Timestamp } from 'firebase/firestore';
 import Link from 'next/link';
 
 interface OrderDetail extends Omit<FirestoreOrder, 'createdAt' | 'updatedAt'> {

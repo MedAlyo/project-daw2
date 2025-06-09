@@ -15,7 +15,6 @@ const CartIcon: React.FC = () => {
         className="relative p-3 text-gray-700 hover:text-blue-600 transition-all duration-200 hover:bg-gray-100 rounded-lg group"
         aria-label={`Shopping cart with ${state.itemCount} items`}
       >
-        {/* Improved cart icon */}
         <svg
           className="w-6 h-6 group-hover:scale-110 transition-transform duration-200"
           fill="none"
@@ -31,7 +30,6 @@ const CartIcon: React.FC = () => {
           />
         </svg>
         
-        {/* Enhanced item count badge */}
         {state.itemCount > 0 && (
           <span className="absolute -top-2 -right-2 bg-gradient-to-r from-red-500 to-red-600 text-white text-xs font-semibold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1 shadow-lg animate-pulse">
             {state.itemCount > 99 ? '99+' : state.itemCount}

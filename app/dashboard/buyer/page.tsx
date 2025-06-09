@@ -14,7 +14,6 @@ export default function BuyerDashboardPage() {
   const [ordersLoading, setOrdersLoading] = useState(true);
   const [ordersError, setOrdersError] = useState<string | null>(null);
   
-  // protect the route
   useEffect(() => {
     if (!loading) {
       if (!user) {
@@ -25,7 +24,6 @@ export default function BuyerDashboardPage() {
     }
   }, [user, loading, router]);
   
-  // fetch buyer's orders
   useEffect(() => {
     const fetchOrders = async () => {
       if (user && user.role === 'buyer') {
@@ -63,7 +61,6 @@ export default function BuyerDashboardPage() {
         <p className="text-gray-700">Welcome back, {user.displayName || user.email}!</p>
       </div>
       
-      {/* quick stats */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <div className="bg-white p-6 rounded-lg shadow border">
           <div className="flex items-center">
@@ -99,7 +96,6 @@ export default function BuyerDashboardPage() {
       </div>
       
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* recent orders */}
         <div className="bg-white p-6 rounded-lg shadow border">
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-xl font-semibold text-gray-800">Recent Orders</h2>
@@ -155,7 +151,6 @@ export default function BuyerDashboardPage() {
           )}
         </div>
         
-        {/* quick actions */}
         <div className="bg-white p-6 rounded-lg shadow border">
           <h2 className="text-xl font-semibold text-gray-800 mb-4">Quick Actions</h2>
           

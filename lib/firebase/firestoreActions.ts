@@ -52,22 +52,12 @@ export interface Product extends ProductData {
   updatedAt: Timestamp;
 }
 
-// ADDED: Function to upload product image to Firebase Storage
-/**
- * Uploads a product image to Firebase Storage.
- * @param file The image file to upload.
- * @param productId The ID of the product (used for path organization).
- * @returns A promise that resolves to the download URL of the uploaded image.
- */
 export const uploadProductImage = async (file: File, productId: string): Promise<string> => {
   const storage = getStorage();
-  // Create a storage reference: products/{productId}/{fileName}
   const storageRef = ref(storage, `products/${productId}/${file.name}`);
 
   try {
-    // Upload the file
     const snapshot = await uploadBytes(storageRef, file);
-    // Get the download URL
     const downloadURL = await getDownloadURL(snapshot.ref);
     console.log('File available at', downloadURL);
     return downloadURL;
@@ -77,13 +67,7 @@ export const uploadProductImage = async (file: File, productId: string): Promise
   }
 };
 
-// Product Functions
 
-/**
- * Adds a new product listing to Firestore.
- * @param productData The data for the new product.
- * @returns The ID of the newly created product document.
- */
 export const addProduct = async (sellerUid: string, storeId: string, productData: Omit<Product, 'id' | 'sellerId' | 'storeId' | 'createdAt' | 'updatedAt'>): Promise<string> => {
   try {
     const now = Timestamp.now();
@@ -110,11 +94,7 @@ export const addProduct = async (sellerUid: string, storeId: string, productData
   }
 }
 
-/**
- * Gets a single product by ID.
- * @param productId The ID of the product to fetch.
- * @returns The product data or null if not found.
- */
+
 export const getProductById = async (productId: string): Promise<Product | null> => {
   try {
     const productDoc = doc(productsCollection, productId);
@@ -136,18 +116,13 @@ export const getProductById = async (productId: string): Promise<Product | null>
   }
 };
 
-/**
- * Updates an existing product in Firestore.
- * @param productId The ID of the product to update.
- * @param updatedData An object containing the fields to update.
- * @returns A promise that resolves when the product is updated.
- */
+
 export const updateProduct = async (productId: string, updatedData: Partial<ProductData>): Promise<void> => {
   try {
     const productDocRef = doc(productsCollection, productId);
     await updateDoc(productDocRef, {
       ...updatedData,
-      updatedAt: Timestamp.now(), // Always update the updatedAt timestamp
+      updatedAt: Timestamp.now(),
     });
     console.log(`Product with ID: ${productId} updated successfully.`);
   } catch (error) {
@@ -157,11 +132,7 @@ export const updateProduct = async (productId: string, updatedData: Partial<Prod
 };
 
 
-/**
- * Retrieves all products listed by a specific seller.
- * @param sellerId The ID of the seller.
- * @returns A promise that resolves to an array of products.
- */
+
 export const getProductsBySeller = async (sellerId: string): Promise<Product[]> => {
   try {
     const q = query(productsCollection, where('sellerId', '==', sellerId), orderBy('createdAt', 'desc'));
@@ -174,11 +145,7 @@ export const getProductsBySeller = async (sellerId: string): Promise<Product[]> 
   }
 };
 
-/**
- * Deletes a product from Firestore.
- * @param productId The ID of the product to delete.
- * @returns A promise that resolves when the product is deleted.
- */
+
 export const deleteProduct = async (productId: string): Promise<void> => {
   try {
     const productDocRef = doc(productsCollection, productId);
@@ -190,13 +157,8 @@ export const deleteProduct = async (productId: string): Promise<void> => {
   }
 };
 
-// User Functions
 
-/**
- * Retrieves a user's profile from Firestore.
- * @param uid The user's unique ID.
- * @returns The user's profile data, or null if not found.
- */
+
 export const getUserProfile = async (uid: string): Promise<UserProfile | null> => {
   try {
     const userDocRef = doc(usersCollection, uid);
@@ -214,25 +176,15 @@ export const getUserProfile = async (uid: string): Promise<UserProfile | null> =
   }
 };
 
-// TODO: Add other user-related functions like createUserProfile, updateUserProfile if they don't exist
 
-// Add this function
-/**
- * Creates a new user profile in Firestore.
- * @param uid The user's unique ID.
- * @param displayName The user's display name.
- * @param role The user's role ('buyer' or 'seller').
- * @returns A promise that resolves when the profile is created.
- */
 export const createUserProfile = async (uid: string, displayName: string, role: 'buyer' | 'seller'): Promise<void> => {
   try {
     const userDocRef = doc(usersCollection, uid);
     await setDoc(userDocRef, {
-      email: auth.currentUser?.email, // Assuming you want to store the email
+      email: auth.currentUser?.email, 
       displayName: displayName,
       role: role,
       createdAt: Timestamp.now(),
-      // Add other default profile fields here if needed
     });
     console.log(`User profile created for UID: ${uid}`);
   } catch (error) {
@@ -241,7 +193,6 @@ export const createUserProfile = async (uid: string, displayName: string, role: 
   }
 };
 
-// Store Interface (Assuming a basic structure)
 export interface Store {
   id: string;
   ownerId: string;
@@ -275,12 +226,7 @@ export interface StoreData {
   updatedAt: Date;
 }
 
-// Store Functions
-/**
- * Retrieves all stores owned by a specific user.
- * @param ownerId The ID of the store owner.
- * @returns A promise that resolves to an array of stores.
- */
+
 export const getStoresByOwner = async (ownerId: string): Promise<Store[]> => {
   try {
     const q = query(storesCollection, where('ownerId', '==', ownerId), orderBy('createdAt', 'desc'));
@@ -293,33 +239,23 @@ export const getStoresByOwner = async (ownerId: string): Promise<Store[]> => {
   }
 };
 
-/**
- * Retrieves a single store by its seller's ID (ownerId).
- * Assumes a seller has at most one store, returns the first one found.
- * @param sellerId The ID of the seller (store owner).
- * @returns A promise that resolves to the store data or null if not found.
- */
+
 export const getStoreBySellerId = async (sellerId: string): Promise<Store | null> => {
   try {
     const q = query(storesCollection, where('ownerId', '==', sellerId), orderBy('createdAt', 'desc'));
     const querySnapshot = await getDocs(q);
     if (!querySnapshot.empty) {
-      // Return the first store found for the seller
       const storeDoc = querySnapshot.docs[0];
       return { id: storeDoc.id, ...storeDoc.data() } as Store;
     }
-    return null; // No store found for this seller
+    return null; 
   } catch (error) {
     console.error('Error fetching store by seller ID:', error);
     throw new Error('Failed to fetch store by seller ID.');
   }
 };
 
-/**
- * Retrieves a store by its ID.
- * @param storeId The ID of the store to retrieve.
- * @returns A promise that resolves to the store or null if not found.
- */
+
 export const getStoreById = async (storeId: string): Promise<Store | null> => {
   try {
     const storeDoc = doc(storesCollection, storeId);
@@ -336,11 +272,7 @@ export const getStoreById = async (storeId: string): Promise<Store | null> => {
   }
 };
 
-/**
- * Retrieves all active products from a specific store.
- * @param storeId The ID of the store.
- * @returns A promise that resolves to an array of products from the store.
- */
+
 export const getProductsByStoreId = async (storeId: string): Promise<Product[]> => {
   try {
     const q = query(
@@ -358,12 +290,7 @@ export const getProductsByStoreId = async (storeId: string): Promise<Product[]> 
   }
 };
 
-/**
- * Updates an existing store in Firestore.
- * @param storeId The ID of the store to update.
- * @param updatedData An object containing the fields to update.
- * @returns A promise that resolves when the store is updated.
- */
+
 export const updateStoreDetails = async (storeId: string, updates: Partial<StoreData>) => {
   try {
     const storeRef = doc(storesCollection, storeId);
@@ -378,9 +305,7 @@ export const updateStoreDetails = async (storeId: string, updates: Partial<Store
   }
 };
 
-// TODO: Add other store-related functions like createStore, getStoreById, deleteStore if they don't exist
 
-// Order Interface
 export interface Order {
   id: string;
   userId: string;
@@ -388,7 +313,7 @@ export interface Order {
   storeId: string;
   items: Array<{ productId: string; productName: string; quantity: number; price: number; image?: string; storeId: string }>;
   totalAmount: number;
-  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'completed' | 'cancelled' | 'refunded'; // Added 'refunded'
+  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'completed' | 'cancelled' | 'refunded'; 
   shippingAddress: {
     name: string;
     addressLine1: string;
@@ -407,13 +332,7 @@ export interface Order {
   notes?: string; 
 }
 
-// Order Functions
-/**
- * Retrieves all orders for a specific seller, optionally filtered by status.
- * @param sellerId The ID of the seller.
- * @param status Optional order status to filter by.
- * @returns A promise that resolves to an array of orders.
- */
+
 export const getOrdersBySeller = async (sellerId: string, status?: Order['status']): Promise<Order[]> => {
   try {
     let q;
@@ -431,12 +350,7 @@ export const getOrdersBySeller = async (sellerId: string, status?: Order['status
   }
 };
 
-/**
- * Updates the status of an order.
- * @param orderId The ID of the order to update.
- * @param newStatus The new status of the order.
- * @returns A promise that resolves when the order status is updated.
- */
+
 export const updateOrderStatus = async (orderId: string, newStatus: Order['status']): Promise<void> => {
   try {
     const orderDocRef = doc(ordersCollection, orderId);
@@ -451,9 +365,7 @@ export const updateOrderStatus = async (orderId: string, newStatus: Order['statu
   }
 };
 
-// TODO: Add other order-related functions like createOrder, getOrderById if they don't exist
 
-// Add after the existing store functions
 export const createStore = async (storeData: any): Promise<string> => {
   try {
     const docRef = await addDoc(storesCollection, storeData);
@@ -465,14 +377,12 @@ export const createStore = async (storeData: any): Promise<string> => {
   }
 };
 
-// Add to existing firestoreActions.ts
 export const getProductsByProximity = async (
   userLat: number, 
   userLng: number, 
   radiusKm: number = 10
 ): Promise<Product[]> => {
   try {
-    // Get all stores first
     const storesSnapshot = await getDocs(storesCollection);
     const nearbyStoreIds: string[] = [];
     
@@ -489,12 +399,11 @@ export const getProductsByProximity = async (
       }
     });
     
-    // Get products from nearby stores
     if (nearbyStoreIds.length === 0) return [];
     
     const q = query(
       productsCollection,
-      where('storeId', 'in', nearbyStoreIds.slice(0, 10)), // Firestore 'in' limit
+      where('storeId', 'in', nearbyStoreIds.slice(0, 10)),
       where('status', '==', 'active')
     );
     
@@ -506,7 +415,6 @@ export const getProductsByProximity = async (
   }
 };
 
-// shipping address interface
 export interface ShippingAddress {
   fullName: string;
   addressLine1: string;
@@ -518,7 +426,6 @@ export interface ShippingAddress {
   phoneNumber?: string;
 }
 
-// order creation data interface
 export interface OrderItem {
   productId: string;
   productName: string;
@@ -545,14 +452,9 @@ export interface Order extends OrderCreateData {
   id: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
-  // status is inherited from OrderCreateData and now includes 'completed'
 }
 
-/**
- * Creates a new order in Firestore.
- * @param orderData The data for the new order.
- * @returns The ID of the newly created order.
- */
+
 export const createOrder = async (orderData: OrderCreateData): Promise<string> => {
   try {
     const now = Timestamp.now();
@@ -572,11 +474,7 @@ export const createOrder = async (orderData: OrderCreateData): Promise<string> =
   }
 };
 
-/**
- * Gets a single order by ID.
- * @param orderId The ID of the order to fetch.
- * @returns The order data or null if not found.
- */
+
 export const getOrderById = async (orderId: string): Promise<Order | null> => {
   try {
     const orderDocRef = doc(ordersCollection, orderId);
@@ -592,11 +490,7 @@ export const getOrderById = async (orderId: string): Promise<Order | null> => {
   }
 };
 
-/**
- * Retrieves all orders for a specific buyer.
- * @param buyerId The ID of the buyer.
- * @returns A promise that resolves to an array of orders.
- */
+
 export const getOrdersByBuyer = async (buyerId: string): Promise<Order[]> => {
   try {
     const q = query(
@@ -612,10 +506,7 @@ export const getOrdersByBuyer = async (buyerId: string): Promise<Order[]> => {
   }
 };
 
-/**
- * Updates product stock after order creation.
- * @param items Array of order items to update stock for.
- */
+
 export const updateProductStock = async (items: Array<{ productId: string; quantity: number }>): Promise<void> => {
   try {
     const updatePromises = items.map(async (item) => {
@@ -641,10 +532,6 @@ export const updateProductStock = async (items: Array<{ productId: string; quant
   }
 };
 
-/**
- * Retrieves all active products from all stores.
- * @returns A promise that resolves to an array of all active products.
- */
 export const getAllProducts = async (): Promise<Product[]> => {
   try {
     const q = query(productsCollection, where('status', '==', 'active'), orderBy('createdAt', 'desc'));
@@ -657,10 +544,6 @@ export const getAllProducts = async (): Promise<Product[]> => {
   }
 };
 
-/**
- * Retrieves all stores.
- * @returns A promise that resolves to an array of all stores.
- */
 export const getAllStores = async (): Promise<Store[]> => {
   try {
     const q = query(storesCollection, orderBy('createdAt', 'desc'));
@@ -673,10 +556,7 @@ export const getAllStores = async (): Promise<Store[]> => {
   }
 };
 
-/**
- * Retrieves featured products (first 8 active products).
- * @returns A promise that resolves to an array of featured products.
- */
+
 export const getFeaturedProducts = async (): Promise<Product[]> => {
   try {
     const q = query(productsCollection, where('status', '==', 'active'), orderBy('createdAt', 'desc'));
@@ -711,6 +591,6 @@ export const getProductSuggestions = async (searchQuery: string): Promise<Produc
     return suggestions;
   } catch (error) {
     console.error('Error fetching product suggestions:', error);
-    throw new Error('Failed to fetch product suggestions.'); // Or return [] depending on how you want to handle errors
+    throw new Error('Failed to fetch product suggestions.');
   }
 };

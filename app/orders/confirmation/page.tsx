@@ -1,11 +1,10 @@
 'use client';
 
-import React, { useState, useEffect, Suspense } from 'react'; // Import Suspense
+import React, { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { getOrderById, Order } from '@/lib/firebase/firestoreActions';
 import Link from 'next/link';
 
-// New component to hold the main content
 function ConfirmationContent() {
   const searchParams = useSearchParams();
   const orderIds = searchParams.get('orders')?.split(',') || [];
@@ -34,9 +33,9 @@ function ConfirmationContent() {
       fetchOrders();
     } else {
       setLoading(false);
-      setError('No order ID found in URL.'); // Provide a more specific error if no IDs
+      setError('No order ID found in URL.');
     }
-  }, [orderIds]); // orderIds is the correct dependency
+  }, [orderIds]);
   
   if (loading) {
     return (
@@ -156,7 +155,6 @@ function ConfirmationContent() {
   );
 }
 
-// Default export wraps ConfirmationContent with Suspense
 export default function OrderConfirmationPage() {
   return (
     <Suspense fallback={<div className="container mx-auto px-4 py-8 flex justify-center items-center min-h-screen"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div></div>}>

@@ -1,13 +1,13 @@
 'use client';
 
 import React from 'react';
-import { Product } from '@/lib/firebase/firestoreActions'; // Assuming Product interface is exported from here
-import Link from 'next/link'; // Import Link for navigation
+import { Product } from '@/lib/firebase/firestoreActions';
+import Link from 'next/link';
 
 interface ProductListProps {
   products: Product[];
-  onEditProduct: (productId: string) => void; // Callback for edit
-  onDeleteProduct: (productId: string) => Promise<void>; // Callback for delete, async for potential confirmation
+  onEditProduct: (productId: string) => void;
+  onDeleteProduct: (productId: string) => Promise<void>;
 }
 
 export default function ProductList({ products, onEditProduct, onDeleteProduct }: ProductListProps) {
@@ -60,14 +60,11 @@ export default function ProductList({ products, onEditProduct, onDeleteProduct }
                   </Link>
                   <button
                     onClick={async () => {
-                      // Consider adding a confirmation dialog here
                       if (window.confirm('Are you sure you want to delete this product?')) {
                         try {
                           await onDeleteProduct(product.id);
-                          // Optionally, show a success message or trigger a refresh
                         } catch (error) {
                           console.error('Failed to delete product:', error);
-                          // Optionally, show an error message to the user
                         }
                       }
                     }}
